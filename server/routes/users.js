@@ -13,6 +13,12 @@ router.post('/', async (req, res) => {
     console.log('Register request received:', req.body);
     const { username, email, password } = req.body;
 
+    // Check if all required fields are present
+    if (!username || !email || !password) {
+      console.log('Missing required fields');
+      return res.status(400).json({ msg: 'Please enter all fields' });
+    }
+
     // Check if user already exists
     let user = await User.findOne({ email });
     if (user) {
@@ -51,8 +57,8 @@ router.post('/', async (req, res) => {
       }
     );
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server error');
+    console.error('Registration error:', err);
+    res.status(500).json({ msg: 'Server error', error: err.message });
   }
 });
 
@@ -112,13 +118,24 @@ router.get('/me', auth, async (req, res) => {
 });
 
 // @route   PUT api/users/role
-// @desc    Set user role
+// @desc    Update user role
 // @access  Private
 router.put('/role', auth, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id);
-    user.role = req.body.role;
-    await user.save();
+    const { role } = req.body;
+    
+    // Validate role
+    if (!['developer', 'designer'].includes(role)) {
+      return res.status(400).json({ msg: 'Invalid role' });
+    }
+    
+    // Update user
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { role },
+      { new: true }
+    ).select('-password');
+    
     res.json(user);
   } catch (err) {
     console.error(err.message);

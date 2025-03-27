@@ -48,13 +48,20 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Register user
-  const register = async (formData) => {
+  const register = async (username, email, password) => {
     try {
-      const res = await axios.post('http://localhost:5001/api/users', formData);
+      console.log('Sending registration data:', { username, email, password });
+      
+      const res = await axios.post('http://localhost:5001/api/users', {
+        username,
+        email,
+        password
+      });
       
       localStorage.setItem('token', res.data.token);
       setAuthToken(res.data.token);
       
+      // Get user data
       const userRes = await axios.get('http://localhost:5001/api/users/me');
       setUser(userRes.data);
       setIsAuthenticated(true);
@@ -62,7 +69,8 @@ export const AuthProvider = ({ children }) => {
       
       return true;
     } catch (err) {
-      setError(err.response.data.msg || 'Registration failed');
+      console.error('Registration error:', err.response?.data || err.message);
+      setError(err.response?.data?.msg || 'Registration failed');
       return false;
     }
   };
@@ -76,14 +84,15 @@ export const AuthProvider = ({ children }) => {
       setAuthToken(res.data.token);
       
       const userRes = await axios.get('http://localhost:5001/api/users/me');
-      setUser(userRes.data);
+      const userData = userRes.data;
+      setUser(userData);
       setIsAuthenticated(true);
       setError(null);
       
-      return true;
+      return userData;
     } catch (err) {
-      setError(err.response.data.msg || 'Login failed');
-      return false;
+      setError(err.response?.data?.msg || 'Login failed');
+      return null;
     }
   };
 

@@ -26,10 +26,18 @@ const Login = () => {
       return;
     }
     
-    const success = await login(formData);
+    const user = await login(formData);
     
-    if (success) {
-      navigate('/choose-role');
+    if (user) {
+      // Check if user already has a role
+      if (user.role === 'developer') {
+        navigate('/developer/dashboard');
+      } else if (user.role === 'designer') {
+        navigate('/designer/dashboard');
+      } else {
+        // If no role is set, go to choose-role page
+        navigate('/choose-role');
+      }
     }
   };
 
@@ -41,49 +49,41 @@ const Login = () => {
           <p className="mt-2 text-gray-600">Access your PairUI account</p>
         </div>
         
-        {formError && (
-          <div className="p-3 text-sm text-red-700 bg-red-100 rounded-md">
-            {formError}
-          </div>
-        )}
-        
-        {error && (
-          <div className="p-3 text-sm text-red-700 bg-red-100 rounded-md">
-            {error}
+        {(formError || error) && (
+          <div className="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg">
+            {formError || error}
           </div>
         )}
         
         <form className="mt-8 space-y-6" onSubmit={onSubmit}>
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email Address
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                required
-                value={email}
-                onChange={onChange}
-                className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              />
-            </div>
-            
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                value={password}
-                onChange={onChange}
-                className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              />
-            </div>
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              Email Address
+            </label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              value={email}
+              onChange={onChange}
+              required
+              className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            />
+          </div>
+          
+          <div>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              Password
+            </label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              value={password}
+              onChange={onChange}
+              required
+              className="block w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            />
           </div>
           
           <div>
@@ -96,12 +96,9 @@ const Login = () => {
           </div>
         </form>
         
-        <div className="text-center">
+        <div className="text-center mt-4">
           <p className="text-sm text-gray-600">
-            Don't have an account?{' '}
-            <Link to="/register" className="font-medium text-indigo-600 hover:text-indigo-500">
-              Register
-            </Link>
+            Don't have an account? <Link to="/register" className="font-medium text-indigo-600 hover:text-indigo-500">Register</Link>
           </p>
         </div>
       </div>
