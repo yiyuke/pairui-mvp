@@ -2,12 +2,41 @@ import React, { useContext, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 import Navbar from '../components/Navbar';
+import MissionList from '../components/MissionList';
+import axios from 'axios';
 
 const DeveloperDashboard = () => {
-  const { user } = useContext(AuthContext);
+  const { user, refreshUser } = useContext(AuthContext);
   const [missions, setMissions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   
-  // You can add code to fetch missions here
+  useEffect(() => {
+    const fetchMissions = async () => {
+      try {
+        const res = await axios.get('http://localhost:5001/api/missions', {
+          headers: {
+            'x-auth-token': localStorage.getItem('token')
+          }
+        });
+        // Filter missions created by this developer
+        const developerMissions = res.data.filter(
+          mission => mission.developerId === user._id
+        );
+        setMissions(developerMissions);
+        setLoading(false);
+      } catch (err) {
+        setError('Failed to fetch missions');
+        setLoading(false);
+      }
+    };
+    
+    fetchMissions();
+  }, [user._id]);
+
+  useEffect(() => {
+    refreshUser();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -33,13 +62,13 @@ const DeveloperDashboard = () => {
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-semibold mb-4">Your Missions</h2>
           
-          {missions.length === 0 ? (
-            <p className="text-gray-600">You haven't created any missions yet.</p>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {/* Map through missions here */}
-            </div>
-          )}
+          <MissionList 
+            missions={missions}
+            loading={loading}
+            error={error}
+            emptyMessage="You haven't created any missions yet."
+            userRole="developer"
+          />
         </div>
       </div>
     </div>

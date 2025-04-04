@@ -26,9 +26,14 @@ const missionSchema = new Schema({
     type: Number,
     required: true
   },
-  developerId: {
+  creatorId: {
     type: Schema.Types.ObjectId,
     ref: 'User',
+    required: true
+  },
+  creatorRole: {
+    type: String,
+    enum: ['developer', 'designer'],
     required: true
   },
   status: {
@@ -36,9 +41,9 @@ const missionSchema = new Schema({
     enum: ['open', 'in-progress', 'completed'],
     default: 'open'
   },
-  designerApplications: [
+  applications: [
     {
-      designerId: {
+      applicantId: {
         type: Schema.Types.ObjectId,
         ref: 'User'
       },
@@ -48,7 +53,7 @@ const missionSchema = new Schema({
         enum: ['pending', 'accepted', 'rejected'],
         default: 'pending'
       },
-      submittedFigmaLink: String,
+      submittedLink: String,
       submittedAt: Date
     }
   ],

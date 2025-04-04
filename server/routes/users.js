@@ -4,143 +4,41 @@ const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const auth = require('../middleware/auth');
+const userController = require('../controllers/userController');
 
 // @route   POST api/users
 // @desc    Register a user
 // @access  Public
-router.post('/', async (req, res) => {
-  try {
-    console.log('Register request received:', req.body);
-    const { username, email, password } = req.body;
-
-    // Check if all required fields are present
-    if (!username || !email || !password) {
-      console.log('Missing required fields');
-      return res.status(400).json({ msg: 'Please enter all fields' });
-    }
-
-    // Check if user already exists
-    let user = await User.findOne({ email });
-    if (user) {
-      return res.status(400).json({ msg: 'User already exists' });
-    }
-
-    // Create new user
-    user = new User({
-      username,
-      email,
-      password
-    });
-
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(password, salt);
-
-    // Save user to database
-    await user.save();
-
-    // Create JWT payload
-    const payload = {
-      user: {
-        id: user.id
-      }
-    };
-
-    // Sign token
-    jwt.sign(
-      payload,
-      process.env.JWT_SECRET,
-      { expiresIn: '5d' },
-      (err, token) => {
-        if (err) throw err;
-        res.json({ token });
-      }
-    );
-  } catch (err) {
-    console.error('Registration error:', err);
-    res.status(500).json({ msg: 'Server error', error: err.message });
-  }
-});
+router.post('/register', userController.registerUser);
 
 // @route   POST api/users/login
 // @desc    Authenticate user & get token
 // @access  Public
-router.post('/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
+router.post('/login', userController.loginUser);
 
-    // Check if user exists
-    let user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ msg: 'Invalid credentials' });
-    }
-
-    // Check password
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ msg: 'Invalid credentials' });
-    }
-
-    // Create JWT payload
-    const payload = {
-      user: {
-        id: user.id
-      }
-    };
-
-    // Sign token
-    jwt.sign(
-      payload,
-      process.env.JWT_SECRET,
-      { expiresIn: '5d' },
-      (err, token) => {
-        if (err) throw err;
-        res.json({ token });
-      }
-    );
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server error');
-  }
-});
-
-// @route   GET api/users/me
+// @route   GET api/users/current
 // @desc    Get current user
 // @access  Private
-router.get('/me', auth, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id).select('-password');
-    res.json(user);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server error');
-  }
-});
+router.get('/current', auth, userController.getCurrentUser);
+
+// @route   GET api/users/:id
+// @desc    Get user by ID
+// @access  Private
+router.get('/:id', auth, userController.getUserProfile);
 
 // @route   PUT api/users/role
-// @desc    Update user role
+// @desc    Set user role
 // @access  Private
-router.put('/role', auth, async (req, res) => {
-  try {
-    const { role } = req.body;
-    
-    // Validate role
-    if (!['developer', 'designer'].includes(role)) {
-      return res.status(400).json({ msg: 'Invalid role' });
-    }
-    
-    // Update user
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      { role },
-      { new: true }
-    ).select('-password');
-    
-    res.json(user);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server error');
-  }
-});
+router.put('/role', auth, userController.setUserRole);
+
+// @route   PUT api/users/profile
+// @desc    Update user profile
+// @access  Private
+router.put('/profile', auth, userController.updateProfile);
+
+// @route   PUT api/users
+// @desc    Update user data (username and role)
+// @access  Private
+router.put('/', auth, userController.updateUser);
 
 module.exports = router; 

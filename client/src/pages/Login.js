@@ -30,10 +30,9 @@ const Login = () => {
     
     if (user) {
       // Check if user already has a role
-      if (user.role === 'developer') {
-        navigate('/developer/dashboard');
-      } else if (user.role === 'designer') {
-        navigate('/designer/dashboard');
+      if (user.role) {
+        // Go directly to the appropriate dashboard
+        navigate(`/${user.role}/dashboard`);
       } else {
         // If no role is set, go to choose-role page
         navigate('/choose-role');

@@ -10,68 +10,40 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Check if user is logged in on page load
+  // Load user on initial render
   useEffect(() => {
-    const checkLoggedIn = async () => {
-      if (localStorage.getItem('token')) {
+    const loadUser = async () => {
+      if (localStorage.token) {
         try {
-          const token = localStorage.getItem('token');
-          
-          // Set auth token header
-          setAuthToken(token);
-          
-          // Get user data
-          const res = await axios.get('http://localhost:5001/api/users/me');
-          
+          const res = await axios.get('http://localhost:5001/api/users/current', {
+            headers: {
+              'x-auth-token': localStorage.token
+            }
+          });
           setUser(res.data);
           setIsAuthenticated(true);
         } catch (err) {
+          console.error('Error loading user:', err);
           localStorage.removeItem('token');
           setUser(null);
           setIsAuthenticated(false);
-          setError('Session expired. Please log in again.');
         }
       }
       setLoading(false);
     };
 
-    checkLoggedIn();
+    loadUser();
   }, []);
-
-  // Set auth token header
-  const setAuthToken = (token) => {
-    if (token) {
-      axios.defaults.headers.common['x-auth-token'] = token;
-    } else {
-      delete axios.defaults.headers.common['x-auth-token'];
-    }
-  };
 
   // Register user
   const register = async (username, email, password) => {
     try {
-      console.log('Sending registration data:', { username, email, password });
-      
-      const res = await axios.post('http://localhost:5001/api/users', {
-        username,
-        email,
-        password
-      });
-      
+      const res = await axios.post('http://localhost:5001/api/users/register', { username, email, password });
       localStorage.setItem('token', res.data.token);
-      setAuthToken(res.data.token);
-      
-      // Get user data
-      const userRes = await axios.get('http://localhost:5001/api/users/me');
-      setUser(userRes.data);
-      setIsAuthenticated(true);
-      setError(null);
-      
+      await loadUser();
       return true;
     } catch (err) {
-      console.error('Registration error:', err.response?.data || err.message);
-      setError(err.response?.data?.msg || 'Registration failed');
-      return false;
+      throw err.response.data;
     }
   };
 
@@ -79,41 +51,88 @@ export const AuthProvider = ({ children }) => {
   const login = async (formData) => {
     try {
       const res = await axios.post('http://localhost:5001/api/users/login', formData);
-      
       localStorage.setItem('token', res.data.token);
-      setAuthToken(res.data.token);
-      
-      const userRes = await axios.get('http://localhost:5001/api/users/me');
-      const userData = userRes.data;
-      setUser(userData);
-      setIsAuthenticated(true);
-      setError(null);
-      
-      return userData;
+      await loadUser();
+      return user; // Return the user object for redirect logic
     } catch (err) {
       setError(err.response?.data?.msg || 'Login failed');
-      return null;
-    }
-  };
-
-  // Set user role
-  const setRole = async (role) => {
-    try {
-      const res = await axios.put('http://localhost:5001/api/users/role', { role });
-      setUser(res.data);
-      return true;
-    } catch (err) {
-      setError(err.response.data.msg || 'Failed to set role');
-      return false;
+      throw err;
     }
   };
 
   // Logout user
   const logout = () => {
     localStorage.removeItem('token');
-    setAuthToken(null);
     setUser(null);
     setIsAuthenticated(false);
+  };
+
+  // Set user role
+  const setRole = async (role) => {
+    try {
+      const res = await axios.put(
+        'http://localhost:5001/api/users/role',
+        { role },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'x-auth-token': localStorage.getItem('token')
+          }
+        }
+      );
+      setUser(res.data);
+      return true;
+    } catch (err) {
+      throw err.response.data;
+    }
+  };
+
+  // Refresh user data
+  const refreshUser = async () => {
+    if (!localStorage.token) {
+      console.error('No token found when trying to refresh user');
+      return false;
+    }
+    
+    try {
+      const res = await axios.get('http://localhost:5001/api/users/current', {
+        headers: {
+          'x-auth-token': localStorage.token
+        }
+      });
+      setUser(res.data);
+      return true;
+    } catch (err) {
+      console.error('Error refreshing user:', err);
+      if (err.response) {
+        console.error('Response data:', err.response.data);
+        console.error('Response status:', err.response.status);
+      }
+      return false;
+    }
+  };
+
+  // Load user function to be used externally
+  const loadUser = async () => {
+    if (localStorage.token) {
+      try {
+        const res = await axios.get('http://localhost:5001/api/users/current', {
+          headers: {
+            'x-auth-token': localStorage.token
+          }
+        });
+        setUser(res.data);
+        setIsAuthenticated(true);
+        return true;
+      } catch (err) {
+        console.error('Error loading user:', err);
+        localStorage.removeItem('token');
+        setUser(null);
+        setIsAuthenticated(false);
+        return false;
+      }
+    }
+    return false;
   };
 
   return (
@@ -125,8 +144,9 @@ export const AuthProvider = ({ children }) => {
         error,
         register,
         login,
+        logout,
         setRole,
-        logout
+        refreshUser
       }}
     >
       {children}

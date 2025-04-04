@@ -19,6 +19,18 @@ const UserSchema = new mongoose.Schema({
     enum: ['developer', 'designer', ''],
     default: ''
   },
+  profile: {
+    bio: {
+      type: String,
+      default: ''
+    },
+    avatar: {
+      type: String,
+      default: ''
+    },
+    skills: [String],
+    portfolio: String
+  },
   date: {
     type: Date,
     default: Date.now
