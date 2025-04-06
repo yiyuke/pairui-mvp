@@ -297,6 +297,13 @@ const Profile = () => {
                   </div>
                 )}
                 
+                <div className="mb-8">
+                  <h2 className="text-xl font-semibold mb-3">Credits:</h2>
+                  <p className="text-gray-700 text-2xl font-bold text-indigo-600">
+                    {user.credits || 0}
+                  </p>
+                </div>
+                
                 {isOwnProfile && (
                   <div className="mt-8">
                     <button

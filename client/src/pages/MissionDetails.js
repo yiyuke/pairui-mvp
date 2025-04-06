@@ -16,6 +16,9 @@ const MissionDetails = () => {
   const [applicationNote, setApplicationNote] = useState('');
   const [figmaLink, setFigmaLink] = useState('');
   const [feedback, setFeedback] = useState({ rating: 5, comments: '' });
+  const [rejectionNote, setRejectionNote] = useState('');
+  const [showRejectionModal, setShowRejectionModal] = useState(false);
+  const [currentApplicationId, setCurrentApplicationId] = useState(null);
   
   useEffect(() => {
     const fetchMission = async () => {
@@ -28,6 +31,7 @@ const MissionDetails = () => {
         setMission(res.data);
         setLoading(false);
       } catch (err) {
+        console.error('Error fetching mission:', err);
         setError('Failed to fetch mission details');
         setLoading(false);
       }
@@ -55,11 +59,42 @@ const MissionDetails = () => {
     }
   };
   
+  const handleOpenRejectionModal = (applicationId) => {
+    setCurrentApplicationId(applicationId);
+    setShowRejectionModal(true);
+  };
+  
   const handleRespondToApplication = async (applicationId, status) => {
     try {
+      if (status === 'accepted') {
+        const res = await axios.put(
+          `http://localhost:5001/api/missions/${id}/applications/${applicationId}`,
+          { status },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'x-auth-token': localStorage.getItem('token')
+            }
+          }
+        );
+        setMission(res.data);
+      } else if (status === 'rejected') {
+        handleOpenRejectionModal(applicationId);
+      }
+    } catch (err) {
+      setError(err.response?.data?.msg || 'Failed to respond to application');
+    }
+  };
+  
+  const handleRejectWithNote = async () => {
+    try {
+      console.log('Sending rejection note:', rejectionNote);
       const res = await axios.put(
-        `http://localhost:5001/api/missions/${id}/applications/${applicationId}`,
-        { status },
+        `http://localhost:5001/api/missions/${id}/applications/${currentApplicationId}`,
+        { 
+          status: 'rejected',
+          rejectionNote: rejectionNote 
+        },
         {
           headers: {
             'Content-Type': 'application/json',
@@ -68,8 +103,11 @@ const MissionDetails = () => {
         }
       );
       setMission(res.data);
+      setShowRejectionModal(false);
+      setRejectionNote('');
+      setCurrentApplicationId(null);
     } catch (err) {
-      setError(err.response?.data?.msg || 'Failed to respond to application');
+      setError(err.response?.data?.msg || 'Failed to reject application');
     }
   };
   
@@ -140,12 +178,16 @@ const MissionDetails = () => {
     }
   };
   
+  const handleGoBack = () => {
+    navigate(`/${user.role}/dashboard`);
+  };
+  
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100">
         <Navbar />
-        <div className="container mx-auto px-4 py-8 flex justify-center">
-          <p className="text-xl">Loading mission details...</p>
+        <div className="container mx-auto px-4 py-8">
+          <p className="text-center text-gray-600">Loading mission details...</p>
         </div>
       </div>
     );
@@ -156,15 +198,7 @@ const MissionDetails = () => {
       <div className="min-h-screen bg-gray-100">
         <Navbar />
         <div className="container mx-auto px-4 py-8">
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            {error}
-          </div>
-          <button
-            onClick={() => navigate(-1)}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded"
-          >
-            Go Back
-          </button>
+          <p className="text-center text-red-600">{error}</p>
         </div>
       </div>
     );
@@ -175,28 +209,27 @@ const MissionDetails = () => {
       <div className="min-h-screen bg-gray-100">
         <Navbar />
         <div className="container mx-auto px-4 py-8">
-          <p className="text-xl">Mission not found</p>
-          <button
-            onClick={() => navigate(-1)}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded mt-4"
-          >
-            Go Back
-          </button>
+          <p className="text-center text-gray-600">Mission not found</p>
         </div>
       </div>
     );
   }
   
-  // Check if user is the developer who created this mission
-  const isDeveloper = user._id === mission.developerId;
+  // Check if the current user is the creator of this mission
+  const isCreator = mission.creatorId._id === user._id;
   
-  // Check if user is a designer who applied for this mission
-  const designerApplication = mission.designerApplications.find(
-    app => app.designerId === user._id
+  // Check if the current user has applied to this mission
+  const userApplication = mission.applications && mission.applications.find(
+    app => app.applicantId && (typeof app.applicantId === 'object' ? 
+      app.applicantId._id === user._id : 
+      app.applicantId === user._id)
   );
   
-  // Check if there's an accepted designer
-  const acceptedDesigner = mission.designerApplications.find(
+  // Debug log
+  console.log('User application:', userApplication);
+  
+  // Check if there's an accepted applicant
+  const acceptedApplication = mission.applications && mission.applications.find(
     app => app.status === 'accepted'
   );
   
@@ -216,97 +249,136 @@ const MissionDetails = () => {
           </span>
         </div>
         
+        <button 
+          onClick={handleGoBack}
+          className="mb-4 flex items-center text-indigo-600 hover:text-indigo-800"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+          </svg>
+          Back to Dashboard
+        </button>
+        
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <h2 className="text-xl font-semibold mb-2">Mission Details</h2>
-              <p className="text-gray-700 mb-4"><span className="font-semibold">Context:</span> {mission.context}</p>
-              <p className="text-gray-700 mb-4"><span className="font-semibold">Demand:</span> {mission.demand}</p>
-              <p className="text-gray-700 mb-4"><span className="font-semibold">UI Library:</span> {mission.uiLibrary}</p>
-              <p className="text-gray-700 mb-4"><span className="font-semibold">Due Date:</span> {formatDate(mission.dueDate)}</p>
-              <p className="text-gray-700 mb-4"><span className="font-semibold">Credits:</span> {mission.credits}</p>
+              <h2 className="text-xl font-semibold mb-4">Mission Details</h2>
+              <p className="mb-2">
+                <span className="font-semibold">Created by:</span>{' '}
+                {mission.creatorId.username || 'Unknown'}
+                {mission.creatorRole && ` (${mission.creatorRole.charAt(0).toUpperCase() + mission.creatorRole.slice(1)})`}
+              </p>
+              <p className="mb-2">
+                <span className="font-semibold">UI Library:</span> {mission.uiLibrary}
+              </p>
+              <p className="mb-2">
+                <span className="font-semibold">Due Date:</span> {formatDate(mission.dueDate)}
+              </p>
+              <p className="mb-2">
+                <span className="font-semibold">Credits:</span> {mission.credits}
+              </p>
+              <p className="mb-2">
+                <span className="font-semibold">Status:</span>{' '}
+                <span className={`px-2 py-1 rounded-full text-xs
+                  ${mission.status === 'open' ? 'bg-blue-100 text-blue-800' : 
+                    mission.status === 'in-progress' ? 'bg-yellow-100 text-yellow-800' : 
+                    'bg-green-100 text-green-800'}`}
+                >
+                  {mission.status.charAt(0).toUpperCase() + mission.status.slice(1)}
+                </span>
+              </p>
             </div>
             
             <div>
-              <h2 className="text-xl font-semibold mb-2">Status</h2>
-              {mission.status === 'open' && (
-                <p className="text-blue-600">This mission is open for applications</p>
-              )}
-              {mission.status === 'in-progress' && (
-                <p className="text-yellow-600">This mission is currently in progress</p>
-              )}
-              {mission.status === 'completed' && (
-                <p className="text-green-600">This mission has been completed</p>
-              )}
-              
-              {mission.feedback && (
-                <div className="mt-4">
-                  <h3 className="text-lg font-semibold">Feedback</h3>
-                  <div className="flex items-center mt-2">
-                    <span className="mr-2">Rating:</span>
-                    <div className="flex">
-                      {[...Array(5)].map((_, i) => (
-                        <svg
-                          key={i}
-                          className={`w-5 h-5 ${i < mission.feedback.rating ? 'text-yellow-400' : 'text-gray-300'}`}
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                        </svg>
-                      ))}
-                    </div>
-                  </div>
-                  <p className="mt-2">{mission.feedback.comments}</p>
-                </div>
-              )}
+              <h2 className="text-xl font-semibold mb-4">Description</h2>
+              <div className="mb-4">
+                <h3 className="font-semibold mb-1">Context:</h3>
+                <p className="text-gray-700">{mission.context}</p>
+              </div>
+              <div>
+                <h3 className="font-semibold mb-1">Demand:</h3>
+                <p className="text-gray-700">{mission.demand}</p>
+              </div>
             </div>
           </div>
         </div>
         
-        {/* Designer Application Section */}
-        {user.role === 'designer' && mission.status === 'open' && !designerApplication && (
+        {/* Figma link for designer missions */}
+        {mission.figmaLink && (
+          <div className="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 className="text-xl font-semibold mb-4">Design Reference</h2>
+            <p className="mb-4">
+              <a
+                href={mission.figmaLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-indigo-600 hover:text-indigo-800"
+              >
+                View Figma Design
+              </a>
+            </p>
+          </div>
+        )}
+        
+        {/* Apply for mission section */}
+        {!isCreator && mission.status === 'open' && !userApplication && (
           <div className="bg-white rounded-lg shadow p-6 mb-6">
             <h2 className="text-xl font-semibold mb-4">Apply for this Mission</h2>
             <div className="mb-4">
               <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="note">
-                Application Note
+                Application Note:
               </label>
               <textarea
                 className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
                 id="note"
-                rows="3"
+                rows="4"
                 value={applicationNote}
                 onChange={(e) => setApplicationNote(e.target.value)}
                 placeholder="Explain why you're a good fit for this mission"
               ></textarea>
             </div>
             <button
-              onClick={handleApply}
               className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+              onClick={handleApply}
             >
-              Apply
+              Submit Application
             </button>
           </div>
         )}
         
-        {/* Designer's Application Status */}
-        {user.role === 'designer' && designerApplication && (
+        {/* User's application status */}
+        {userApplication && (
           <div className="bg-white rounded-lg shadow p-6 mb-6">
             <h2 className="text-xl font-semibold mb-4">Your Application</h2>
             <p className="mb-2">
               <span className="font-semibold">Status:</span>{' '}
-              {formatApplicationStatus(designerApplication.status)}
+              <span className={`px-2 py-1 rounded-full text-xs
+                ${userApplication.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
+                  userApplication.status === 'accepted' ? 'bg-green-100 text-green-800' : 
+                  'bg-red-100 text-red-800'}`}
+              >
+                {userApplication.status.charAt(0).toUpperCase() + userApplication.status.slice(1)}
+              </span>
             </p>
-            <p className="mb-4"><span className="font-semibold">Your Note:</span> {designerApplication.note}</p>
+
+            {/* Display rejection reason if application was rejected */}
+            {userApplication.status === 'rejected' && userApplication.rejectionNote && (
+              <p className="mb-2 text-red-600">
+                <span className="font-semibold">Rejection Reason:</span> {userApplication.rejectionNote}
+              </p>
+            )}
+
+            <p className="mb-4">
+              <span className="font-semibold">Your Note:</span> {userApplication.note}
+            </p>
             
-            {/* Submit Design Section (for accepted designers) */}
-            {designerApplication.status === 'accepted' && !designerApplication.submittedFigmaLink && (
-              <div className="mt-4">
-                <h3 className="text-lg font-semibold mb-2">Submit Your Design</h3>
+            {/* Submit work section for accepted designers */}
+            {userApplication.status === 'accepted' && mission.status === 'in-progress' && !userApplication.submittedLink && (
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Submit Your Work</h3>
                 <div className="mb-4">
                   <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="figmaLink">
-                    Figma Link
+                    Figma Link:
                   </label>
                   <input
                     className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
@@ -314,99 +386,77 @@ const MissionDetails = () => {
                     type="text"
                     value={figmaLink}
                     onChange={(e) => setFigmaLink(e.target.value)}
-                    placeholder="Paste your Figma design link here"
+                    placeholder="https://www.figma.com/file/..."
                   />
                 </div>
                 <button
-                  onClick={handleSubmitDesign}
                   className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                  onClick={handleSubmitDesign}
                 >
                   Submit Design
                 </button>
               </div>
             )}
-            
-            {/* Show submitted design */}
-            {designerApplication.submittedFigmaLink && (
-              <div className="mt-4">
-                <h3 className="text-lg font-semibold mb-2">Your Submitted Design</h3>
-                <p className="mb-2">
-                  <span className="font-semibold">Submitted on:</span>{' '}
-                  {formatDate(designerApplication.submittedAt)}
-                </p>
-                <a
-                  href={designerApplication.submittedFigmaLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-indigo-600 hover:text-indigo-800"
-                >
-                  View Figma Design
-                </a>
-              </div>
-            )}
           </div>
         )}
         
-        {/* Developer's View - Applications */}
-        {isDeveloper && mission.status === 'open' && (
+        {/* Applications section for mission creator */}
+        {isCreator && mission.status === 'open' && mission.applications && mission.applications.length > 0 && (
           <div className="bg-white rounded-lg shadow p-6 mb-6">
-            <h2 className="text-xl font-semibold mb-4">Designer Applications</h2>
-            {mission.applications.length === 0 ? (
-              <p>No applications yet</p>
-            ) : (
-              <div className="space-y-4">
-                {mission.applications.map((app) => (
-                  <div key={app._id} className="border rounded-lg p-4">
-                    <div className="flex items-center mb-4">
-                      <img 
-                        src={app.applicantId.profile.avatar} 
-                        alt={app.applicantId.username} 
-                        className="w-12 h-12 rounded-full mr-3"
-                      />
-                      <div>
-                        <p className="font-semibold text-lg">{app.applicantId.username}</p>
-                        <p className="text-sm text-gray-600">
-                          {formatApplicationStatus(app.status)}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <p className="mb-4"><span className="font-semibold">Note:</span> {app.note}</p>
-                    
-                    {app.status === 'pending' && (
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleRespondToApplication(app._id, 'accepted')}
-                          className="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded focus:outline-none focus:shadow-outline"
-                        >
-                          Accept
-                        </button>
-                        <button
-                          onClick={() => handleRespondToApplication(app._id, 'rejected')}
-                          className="bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-3 rounded focus:outline-none focus:shadow-outline"
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    )}
+            <h2 className="text-xl font-semibold mb-4">Applications</h2>
+            {mission.applications.map(app => (
+              <div key={app._id} className="border-b pb-4 mb-4 last:border-0 last:mb-0 last:pb-0">
+                <div className="flex items-center mb-2">
+                  <img 
+                    src={app.applicantId.profile?.avatar || 'https://via.placeholder.com/40'} 
+                    alt="Applicant" 
+                    className="w-10 h-10 rounded-full mr-3"
+                  />
+                  <div>
+                    <p className="font-semibold">{app.applicantId.username}</p>
+                    <p className="text-sm text-gray-500">{app.applicantId.profile?.bio || 'No bio provided'}</p>
                   </div>
-                ))}
+                </div>
+                <p className="mb-3">{app.note}</p>
+                
+                {app.status === 'pending' && (
+                  <div className="flex space-x-2">
+                    <button
+                      className="bg-green-600 hover:bg-green-700 text-white py-1 px-3 rounded text-sm"
+                      onClick={() => handleRespondToApplication(app._id, 'accepted')}
+                    >
+                      Accept
+                    </button>
+                    <button
+                      className="bg-red-600 hover:bg-red-700 text-white py-1 px-3 rounded text-sm"
+                      onClick={() => handleRespondToApplication(app._id, 'rejected')}
+                    >
+                      Reject
+                    </button>
+                  </div>
+                )}
+                
+                {app.status !== 'pending' && (
+                  <p className={`text-sm ${app.status === 'accepted' ? 'text-green-600' : 'text-red-600'}`}>
+                    {app.status.charAt(0).toUpperCase() + app.status.slice(1)}
+                  </p>
+                )}
               </div>
-            )}
+            ))}
           </div>
         )}
         
-        {/* Developer's View - Accepted Designer's Work */}
-        {isDeveloper && acceptedDesigner && acceptedDesigner.submittedFigmaLink && mission.status === 'in-progress' && (
+        {/* Submitted design section for developers */}
+        {isCreator && acceptedApplication && acceptedApplication.submittedLink && mission.status === 'in-progress' && (
           <div className="bg-white rounded-lg shadow p-6 mb-6">
             <h2 className="text-xl font-semibold mb-4">Submitted Design</h2>
             <p className="mb-2">
               <span className="font-semibold">Submitted on:</span>{' '}
-              {formatDate(acceptedDesigner.submittedAt)}
+              {formatDate(acceptedApplication.submittedAt)}
             </p>
             <p className="mb-4">
               <a
-                href={acceptedDesigner.submittedFigmaLink}
+                href={acceptedApplication.submittedLink}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-indigo-600 hover:text-indigo-800"
@@ -418,55 +468,92 @@ const MissionDetails = () => {
             <h3 className="text-lg font-semibold mb-2">Provide Feedback</h3>
             <div className="mb-4">
               <label className="block text-gray-700 text-sm font-bold mb-2">
-                Rating
+                Rating:
               </label>
-              <div className="flex">
-                {[...Array(5)].map((_, i) => (
+              <div className="flex items-center">
+                {[1, 2, 3, 4, 5].map(star => (
                   <button
-                    key={i}
+                    key={star}
                     type="button"
-                    onClick={() => setFeedback({ ...feedback, rating: i + 1 })}
-                    className="focus:outline-none"
+                    className={`text-2xl ${feedback.rating >= star ? 'text-yellow-400' : 'text-gray-300'}`}
+                    onClick={() => setFeedback({ ...feedback, rating: star })}
                   >
-                    <svg
-                      className={`w-6 h-6 ${i < feedback.rating ? 'text-yellow-400' : 'text-gray-300'}`}
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                    </svg>
+                    ★
                   </button>
                 ))}
               </div>
             </div>
             <div className="mb-4">
               <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="comments">
-                Comments
+                Comments:
               </label>
               <textarea
                 className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
                 id="comments"
-                rows="3"
+                rows="4"
                 value={feedback.comments}
                 onChange={(e) => setFeedback({ ...feedback, comments: e.target.value })}
-                placeholder="Provide feedback on the design"
+                placeholder="Provide feedback on the submitted design"
               ></textarea>
             </div>
             <button
-              onClick={handleProvideFeedback}
               className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+              onClick={handleProvideFeedback}
             >
               Submit Feedback & Complete Mission
             </button>
           </div>
         )}
         
-        <button
-          onClick={() => navigate(-1)}
-          className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-        >
-          Go Back
-        </button>
+        {/* Feedback section for completed missions */}
+        {mission.status === 'completed' && mission.feedback && (
+          <div className="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 className="text-xl font-semibold mb-4">Feedback</h2>
+            <div className="mb-2">
+              <span className="font-semibold">Rating:</span>{' '}
+              <span className="text-yellow-400">
+                {Array(mission.feedback.rating).fill('★').join('')}
+              </span>
+              <span className="text-gray-300">
+                {Array(5 - mission.feedback.rating).fill('★').join('')}
+              </span>
+            </div>
+            <div>
+              <span className="font-semibold">Comments:</span>
+              <p className="mt-1">{mission.feedback.comments}</p>
+            </div>
+          </div>
+        )}
+        
+        {showRejectionModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full">
+              <h3 className="text-xl font-semibold mb-4">Reject Application</h3>
+              <p className="mb-4 text-gray-600">Please provide a reason for rejection:</p>
+              <textarea
+                className="w-full border rounded p-2 mb-4"
+                rows="4"
+                value={rejectionNote}
+                onChange={(e) => setRejectionNote(e.target.value)}
+                placeholder="Explain why you're rejecting this application..."
+              ></textarea>
+              <div className="flex justify-end space-x-2">
+                <button
+                  onClick={() => setShowRejectionModal(false)}
+                  className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleRejectWithNote}
+                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                >
+                  Reject
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

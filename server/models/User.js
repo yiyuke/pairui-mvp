@@ -1,9 +1,11 @@
 const mongoose = require('mongoose');
+const Schema = mongoose.Schema;
 
-const UserSchema = new mongoose.Schema({
+const userSchema = new Schema({
   username: {
     type: String,
-    required: true
+    required: true,
+    unique: true
   },
   email: {
     type: String,
@@ -19,6 +21,10 @@ const UserSchema = new mongoose.Schema({
     enum: ['developer', 'designer', ''],
     default: ''
   },
+  credits: {
+    type: Number,
+    default: 500 // Default credits for new users
+  },
   profile: {
     bio: {
       type: String,
@@ -31,10 +37,10 @@ const UserSchema = new mongoose.Schema({
     skills: [String],
     portfolio: String
   },
-  date: {
+  createdAt: {
     type: Date,
     default: Date.now
   }
 });
 
-module.exports = mongoose.model('User', UserSchema); 
+module.exports = mongoose.model('User', userSchema); 

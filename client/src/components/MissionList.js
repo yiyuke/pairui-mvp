@@ -46,12 +46,12 @@ const MissionList = ({ missions, loading, error, emptyMessage, userRole }) => {
             <p className="text-gray-600 text-sm mb-2">Credits: {mission.credits}</p>
             <p className="text-gray-600 text-sm mb-4">UI Library: {mission.uiLibrary}</p>
             
-            {userRole === 'developer' && (
+            {userRole === 'developer' && mission.applications && (
               <div className="text-sm text-gray-500">
-                {mission.designerApplications.length === 0 ? (
+                {mission.applications.length === 0 ? (
                   <p>No applications yet</p>
                 ) : (
-                  <p>{mission.designerApplications.length} application(s)</p>
+                  <p>{mission.applications.length} application(s)</p>
                 )}
               </div>
             )}

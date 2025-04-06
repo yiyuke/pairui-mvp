@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 import defaultDeveloperAvatar from '../assets/images/default-developer-avatar.png';
 import defaultDesignerAvatar from '../assets/images/default-designer-avatar.png';
+import NotificationIcon from './NotificationIcon';
 
 const Navbar = () => {
   const { logout, user } = useContext(AuthContext);
@@ -39,51 +40,71 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="bg-indigo-600 text-white p-4">
-      <div className="container mx-auto flex justify-between items-center">
-        <Link to={user?.role ? `/${user.role}/dashboard` : "/"} className="text-xl font-bold">
-          PairUI
-        </Link>
-        
-        {user && (
-          <div className="relative" ref={dropdownRef}>
-            <button 
-              onClick={() => setDropdownOpen(!dropdownOpen)}
-              className="flex items-center focus:outline-none"
-            >
-              <img 
-                src={user.profile?.avatar || getDefaultAvatar(user.role)} 
-                alt={user.username} 
-                className="w-8 h-8 rounded-full mr-2"
-              />
-              <span className="hidden md:inline">{user.username}</span>
-              <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            
-            {dropdownOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
-                <Link 
-                  to={`/profile/${user._id}`}
-                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  onClick={() => setDropdownOpen(false)}
-                >
-                  My Profile
+    <nav className="bg-white shadow-md">
+      <div className="container mx-auto px-4">
+        <div className="flex justify-between items-center py-4">
+          <Link to="/" className="text-2xl font-bold text-indigo-600">PairUI</Link>
+          
+          <div className="flex items-center space-x-4">
+            {user ? (
+              <>
+                {user.role && (
+                  <Link 
+                    to={`/${user.role}/dashboard`} 
+                    className="text-gray-700 hover:text-indigo-600"
+                  >
+                    Dashboard
+                  </Link>
+                )}
+                
+                <div className="flex items-center space-x-4">
+                  <NotificationIcon />
+                  
+                  <div className="relative" ref={dropdownRef}>
+                    <button 
+                      className="flex items-center focus:outline-none"
+                      onClick={() => setDropdownOpen(!dropdownOpen)}
+                    >
+                      <img 
+                        src={user.profile?.avatar || getDefaultAvatar(user.role)} 
+                        alt={user.username} 
+                        className="w-8 h-8 rounded-full object-cover"
+                      />
+                      <span className="ml-2">{user.username}</span>
+                      <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    
+                    {dropdownOpen && (
+                      <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
+                        <Link 
+                          to={`/profile/${user._id}`} 
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          Profile
+                        </Link>
+                        <div 
+                          onClick={handleLogout} 
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                        >
+                          Logout
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <Link to="/login" className="text-gray-700 hover:text-indigo-600">Login</Link>
+                <Link to="/register" className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">
+                  Sign Up
                 </Link>
-                <button
-                  onClick={() => {
-                    handleLogout();
-                    setDropdownOpen(false);
-                  }}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  Logout
-                </button>
-              </div>
+              </>
             )}
           </div>
-        )}
+        </div>
       </div>
     </nav>
   );

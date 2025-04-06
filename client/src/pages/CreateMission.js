@@ -15,13 +15,14 @@ const CreateMission = () => {
     demand: '',
     uiLibrary: '',
     dueDate: '',
-    credits: ''
+    credits: '',
+    figmaLink: ''
   });
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const { name, context, demand, uiLibrary, dueDate, credits } = formData;
+  const { name, context, demand, uiLibrary, dueDate, credits, figmaLink } = formData;
 
   const onChange = e => {
     setState({ ...formData, [e.target.name]: e.target.value });
@@ -34,7 +35,14 @@ const CreateMission = () => {
 
     // Validate form
     if (!name || !context || !demand || !uiLibrary || !dueDate || !credits) {
-      setError('Please fill in all fields');
+      setError('Please fill in all required fields');
+      setLoading(false);
+      return;
+    }
+
+    // For designers, figmaLink is required
+    if (user.role === 'designer' && !figmaLink) {
+      setError('Please provide a Figma link for your design');
       setLoading(false);
       return;
     }
@@ -47,12 +55,21 @@ const CreateMission = () => {
         }
       };
 
-      const body = JSON.stringify({ name, context, demand, uiLibrary, dueDate, credits });
+      // Include figmaLink only for designer missions
+      const body = JSON.stringify({ 
+        name, 
+        context, 
+        demand, 
+        uiLibrary, 
+        dueDate, 
+        credits,
+        ...(user.role === 'designer' && { figmaLink })
+      });
       
       await axios.post('http://localhost:5001/api/missions', body, config);
       
       setLoading(false);
-      navigate('/developer/dashboard');
+      navigate(`/${user.role}/dashboard`);
     } catch (err) {
       setError(err.response?.data?.msg || 'Failed to create mission');
       setLoading(false);
@@ -105,25 +122,27 @@ const CreateMission = () => {
                 className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
                 id="context"
                 name="context"
+                rows="3"
                 value={context}
                 onChange={onChange}
                 placeholder="Describe the context of your project"
-                rows="3"
               ></textarea>
             </div>
             
             <div className="mb-4">
               <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="demand">
-                Demand
+                {user.role === 'developer' ? 'Design Requirements' : 'Development Requirements'}
               </label>
               <textarea
                 className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
                 id="demand"
                 name="demand"
+                rows="3"
                 value={demand}
                 onChange={onChange}
-                placeholder="Describe what you need from the designer"
-                rows="3"
+                placeholder={user.role === 'developer' 
+                  ? "Describe what you need designed" 
+                  : "Describe what you need developed"}
               ></textarea>
             </div>
             
@@ -144,9 +163,27 @@ const CreateMission = () => {
                 <option value="Bootstrap">Bootstrap</option>
                 <option value="Chakra UI">Chakra UI</option>
                 <option value="Ant Design">Ant Design</option>
-                <option value="Other">Other</option>
+                <option value="Custom">Custom</option>
               </select>
             </div>
+            
+            {/* Figma Link field - only for designers */}
+            {user.role === 'designer' && (
+              <div className="mb-4">
+                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="figmaLink">
+                  Figma Design Link
+                </label>
+                <input
+                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                  id="figmaLink"
+                  type="text"
+                  name="figmaLink"
+                  value={figmaLink}
+                  onChange={onChange}
+                  placeholder="Paste your Figma design link here"
+                />
+              </div>
+            )}
             
             <div className="mb-4">
               <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="dueDate">

@@ -51,6 +51,7 @@ mongoose.connect(mongoURI)
       // Routes
       app.use('/api/users', require('./routes/users'));
       app.use('/api/missions', require('./routes/missions'));
+      app.use('/api/notifications', require('./routes/notifications'));
       
       // Start server
       const PORT = process.env.PORT || 5001;

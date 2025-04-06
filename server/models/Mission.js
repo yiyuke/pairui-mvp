@@ -53,6 +53,7 @@ const missionSchema = new Schema({
         enum: ['pending', 'accepted', 'rejected'],
         default: 'pending'
       },
+      rejectionNote: String,
       submittedLink: String,
       submittedAt: Date
     }

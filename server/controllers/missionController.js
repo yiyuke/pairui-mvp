@@ -1,9 +1,10 @@
 const Mission = require('../models/Mission');
 const User = require('../models/User');
+const Notification = require('../models/Notification');
 
 // Create a new mission
 exports.createMission = async (req, res) => {
-  const { name, context, demand, uiLibrary, dueDate, credits } = req.body;
+  const { name, context, demand, uiLibrary, dueDate, credits, figmaLink } = req.body;
 
   try {
     // Check if user has a role
@@ -20,7 +21,8 @@ exports.createMission = async (req, res) => {
       dueDate,
       credits,
       creatorId: req.user.id,
-      creatorRole: user.role
+      creatorRole: user.role,
+      figmaLink: figmaLink || null // Make sure figmaLink is properly handled
     });
 
     const mission = await newMission.save();
@@ -34,15 +36,45 @@ exports.createMission = async (req, res) => {
 // Get all missions
 exports.getAllMissions = async (req, res) => {
   try {
+    // Check if req.user exists
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ msg: 'User authentication failed' });
+    }
+
     // Populate creator information
     const missions = await Mission.find()
       .populate('creatorId', 'username profile.avatar')
       .populate('applications.applicantId', 'username profile.avatar')
       .sort({ createdAt: -1 });
     
-    res.json(missions);
+    // Get the user's role
+    const user = await User.findById(req.user.id);
+    
+    if (!user) {
+      return res.status(404).json({ msg: 'User not found' });
+    }
+    
+    // If user is a developer, include all missions created by designers
+    // If user is a designer, include all missions created by developers
+    // Always include missions created by the user themselves
+    let filteredMissions;
+    if (user.role === 'developer') {
+      filteredMissions = missions.filter(mission => 
+        (mission.creatorId && mission.creatorId._id && mission.creatorId._id.toString() === req.user.id) || 
+        mission.creatorRole === 'designer'
+      );
+    } else if (user.role === 'designer') {
+      filteredMissions = missions.filter(mission => 
+        (mission.creatorId && mission.creatorId._id && mission.creatorId._id.toString() === req.user.id) || 
+        mission.creatorRole === 'developer'
+      );
+    } else {
+      filteredMissions = missions;
+    }
+    
+    res.json(filteredMissions);
   } catch (err) {
-    console.error(err.message);
+    console.error('Error in getAllMissions:', err.message);
     res.status(500).send('Server error');
   }
 };
@@ -58,6 +90,7 @@ exports.getMissionById = async (req, res) => {
       return res.status(404).json({ msg: 'Mission not found' });
     }
     
+    console.log('Mission applications:', mission.applications);
     res.json(mission);
   } catch (err) {
     console.error(err.message);
@@ -65,6 +98,21 @@ exports.getMissionById = async (req, res) => {
       return res.status(404).json({ msg: 'Mission not found' });
     }
     res.status(500).send('Server error');
+  }
+};
+
+// Add this helper function to create notifications
+const createNotification = async (recipientId, message, missionId) => {
+  try {
+    const notification = new Notification({
+      recipient: recipientId,
+      message,
+      missionId
+    });
+    
+    await notification.save();
+  } catch (err) {
+    console.error('Error creating notification:', err);
   }
 };
 
@@ -109,6 +157,13 @@ exports.applyForMission = async (req, res) => {
       .populate('creatorId', 'username profile.avatar')
       .populate('applications.applicantId', 'username profile.avatar');
       
+    // After saving the mission, create a notification for the mission creator
+    await createNotification(
+      mission.creatorId,
+      `A new application has been received for your mission "${mission.name}"`,
+      mission._id
+    );
+    
     res.json(updatedMission);
   } catch (err) {
     console.error(err.message);
@@ -118,7 +173,7 @@ exports.applyForMission = async (req, res) => {
 
 // Accept or reject an application
 exports.respondToApplication = async (req, res) => {
-  const { status } = req.body;
+  const { status, rejectionNote } = req.body;
   
   // Validate status
   if (status !== 'accepted' && status !== 'rejected') {
@@ -149,6 +204,12 @@ exports.respondToApplication = async (req, res) => {
     // Update application status
     mission.applications[applicationIndex].status = status;
     
+    // Add rejection note if provided
+    if (status === 'rejected' && rejectionNote) {
+      console.log('Setting rejection note:', rejectionNote);
+      mission.applications[applicationIndex].rejectionNote = rejectionNote;
+    }
+    
     // If accepting, update mission status and reject other applications
     if (status === 'accepted') {
       mission.status = 'in-progress';
@@ -166,6 +227,21 @@ exports.respondToApplication = async (req, res) => {
       .populate('creatorId', 'username profile.avatar')
       .populate('applications.applicantId', 'username profile.avatar');
       
+    // After updating the application status
+    const applicantId = mission.applications[applicationIndex].applicantId;
+    const statusText = status === 'accepted' ? 'accepted' : 'rejected';
+    
+    let notificationMessage = `Your application for the mission "${mission.name}" has been ${statusText}`;
+    if (status === 'rejected' && rejectionNote) {
+      notificationMessage += `. Reason: ${rejectionNote}`;
+    }
+    
+    await createNotification(
+      applicantId,
+      notificationMessage,
+      mission._id
+    );
+    
     res.json(updatedMission);
   } catch (err) {
     console.error(err.message);
@@ -204,6 +280,13 @@ exports.submitWork = async (req, res) => {
       .populate('creatorId', 'username profile.avatar')
       .populate('applications.applicantId', 'username profile.avatar');
       
+    // After saving the mission
+    await createNotification(
+      mission.creatorId,
+      `The work for your mission "${mission.name}" has been submitted`,
+      mission._id
+    );
+    
     res.json(updatedMission);
   } catch (err) {
     console.error(err.message);
@@ -250,11 +333,35 @@ exports.provideFeedback = async (req, res) => {
     
     await mission.save();
     
+    // Transfer credits from creator to applicant
+    const creator = await User.findById(mission.creatorId);
+    const applicant = await User.findById(acceptedApplication.applicantId);
+    
+    // Check if creator has enough credits
+    if (creator.credits >= mission.credits) {
+      // Deduct credits from creator
+      creator.credits -= mission.credits;
+      await creator.save();
+      
+      // Add credits to applicant
+      applicant.credits += mission.credits;
+      await applicant.save();
+    } else {
+      return res.status(400).json({ msg: 'Not enough credits to complete this mission' });
+    }
+    
     // Populate user info before returning
     const updatedMission = await Mission.findById(mission._id)
       .populate('creatorId', 'username profile.avatar')
       .populate('applications.applicantId', 'username profile.avatar');
       
+    // After saving the mission
+    await createNotification(
+      acceptedApplication.applicantId,
+      `Feedback has been provided for your work on the mission "${mission.name}"`,
+      mission._id
+    );
+    
     res.json(updatedMission);
   } catch (err) {
     console.error(err.message);

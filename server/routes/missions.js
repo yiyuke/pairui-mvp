@@ -13,7 +13,7 @@ router.post('/', auth, missionController.createMission);
 // @route   GET api/missions
 // @desc    Get all missions
 // @access  Public
-router.get('/', missionController.getAllMissions);
+router.get('/', auth, missionController.getAllMissions);
 
 // @route   GET api/missions/:id
 // @desc    Get mission by ID

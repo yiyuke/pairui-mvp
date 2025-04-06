@@ -123,16 +123,14 @@ export const AuthProvider = ({ children }) => {
         });
         setUser(res.data);
         setIsAuthenticated(true);
-        return true;
       } catch (err) {
         console.error('Error loading user:', err);
         localStorage.removeItem('token');
         setUser(null);
         setIsAuthenticated(false);
-        return false;
       }
     }
-    return false;
+    setLoading(false);
   };
 
   return (
