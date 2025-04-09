@@ -160,22 +160,25 @@ const NotificationIcon = () => {
                 </div>
               ) : (
                 notifications.map(notification => (
-                  <Link 
-                    key={notification._id}
-                    to={`/missions/${notification.missionId?._id}`}
-                    className={`block px-4 py-3 border-b hover:bg-gray-50 ${!notification.read ? 'bg-blue-50' : ''}`}
-                    onClick={() => handleMarkAsRead(notification._id)}
-                  >
+                  <div key={notification._id} className={`block px-4 py-3 border-b hover:bg-gray-50 ${!notification.read ? 'bg-blue-50' : ''}`}>
                     <div className="flex justify-between">
                       <p className="text-sm font-medium text-gray-900">{notification.message}</p>
                       <p className="text-xs text-gray-500">{formatDate(notification.createdAt)}</p>
                     </div>
-                    {notification.missionId && (
-                      <p className="text-xs text-gray-500 mt-1">
+                    {notification.missionId ? (
+                      <Link 
+                        to={`/missions/${notification.missionId._id}`}
+                        className="text-xs text-indigo-600 hover:text-indigo-800 mt-1 block"
+                        onClick={() => handleMarkAsRead(notification._id)}
+                      >
                         Mission: {notification.missionId.name}
+                      </Link>
+                    ) : (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Mission no longer available
                       </p>
                     )}
-                  </Link>
+                  </div>
                 ))
               )}
             </div>

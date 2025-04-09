@@ -43,65 +43,11 @@ router.put('/:id/feedback', auth, missionController.provideFeedback);
 // @route   PUT api/missions/:id
 // @desc    Update a mission
 // @access  Private
-router.put('/:id', auth, async (req, res) => {
-  try {
-    const mission = await Mission.findById(req.params.id);
-    
-    if (!mission) {
-      return res.status(404).json({ msg: 'Mission not found' });
-    }
-    
-    // Check if user is the mission creator
-    if (mission.creator.toString() !== req.user.id) {
-      return res.status(401).json({ msg: 'User not authorized' });
-    }
-    
-    const { title, description, requirements, budget, deadline, status } = req.body;
-    
-    // Update mission fields
-    if (title) mission.title = title;
-    if (description) mission.description = description;
-    if (requirements) mission.requirements = requirements;
-    if (budget) mission.budget = budget;
-    if (deadline) mission.deadline = deadline;
-    if (status) mission.status = status;
-    
-    await mission.save();
-    res.json(mission);
-  } catch (err) {
-    console.error(err.message);
-    if (err.kind === 'ObjectId') {
-      return res.status(404).json({ msg: 'Mission not found' });
-    }
-    res.status(500).send('Server error');
-  }
-});
+router.put('/:id', auth, missionController.updateMission);
 
 // @route   DELETE api/missions/:id
 // @desc    Delete a mission
 // @access  Private
-router.delete('/:id', auth, async (req, res) => {
-  try {
-    const mission = await Mission.findById(req.params.id);
-    
-    if (!mission) {
-      return res.status(404).json({ msg: 'Mission not found' });
-    }
-    
-    // Check if user is the mission creator
-    if (mission.creator.toString() !== req.user.id) {
-      return res.status(401).json({ msg: 'User not authorized' });
-    }
-    
-    await mission.remove();
-    res.json({ msg: 'Mission removed' });
-  } catch (err) {
-    console.error(err.message);
-    if (err.kind === 'ObjectId') {
-      return res.status(404).json({ msg: 'Mission not found' });
-    }
-    res.status(500).send('Server error');
-  }
-});
+router.delete('/:id', auth, missionController.deleteMission);
 
 module.exports = router; 

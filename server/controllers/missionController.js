@@ -367,4 +367,98 @@ exports.provideFeedback = async (req, res) => {
     console.error(err.message);
     res.status(500).send('Server error');
   }
+};
+
+// Update a mission
+exports.updateMission = async (req, res) => {
+  try {
+    const mission = await Mission.findById(req.params.id);
+    
+    if (!mission) {
+      return res.status(404).json({ msg: 'Mission not found' });
+    }
+    
+    // Check if user is the mission creator
+    if (mission.creatorId.toString() !== req.user.id) {
+      return res.status(401).json({ msg: 'User not authorized' });
+    }
+    
+    // Only allow editing if mission is still open
+    if (mission.status !== 'open') {
+      return res.status(400).json({ msg: 'Cannot edit missions that are in progress or completed' });
+    }
+    
+    const { name, context, demand, uiLibrary, dueDate, credits, figmaLink } = req.body;
+    
+    // Update mission fields
+    if (name) mission.name = name;
+    if (context) mission.context = context;
+    if (demand) mission.demand = demand;
+    if (uiLibrary) mission.uiLibrary = uiLibrary;
+    if (dueDate) mission.dueDate = dueDate;
+    if (credits) mission.credits = credits;
+    if (figmaLink !== undefined) mission.figmaLink = figmaLink;
+    
+    await mission.save();
+    
+    // Notify applicants about the mission update
+    if (mission.applications && mission.applications.length > 0) {
+      for (const application of mission.applications) {
+        await createNotification(
+          application.applicantId,
+          `A mission you applied for "${mission.name}" has been updated`,
+          mission._id
+        );
+      }
+    }
+    
+    res.json(mission);
+  } catch (err) {
+    console.error(err.message);
+    if (err.kind === 'ObjectId') {
+      return res.status(404).json({ msg: 'Mission not found' });
+    }
+    res.status(500).send('Server error');
+  }
+};
+
+// Delete a mission
+exports.deleteMission = async (req, res) => {
+  try {
+    const mission = await Mission.findById(req.params.id);
+    
+    if (!mission) {
+      return res.status(404).json({ msg: 'Mission not found' });
+    }
+    
+    // Check if user is the mission creator
+    if (mission.creatorId.toString() !== req.user.id) {
+      return res.status(401).json({ msg: 'User not authorized' });
+    }
+    
+    // Only allow deletion if mission is still open
+    if (mission.status !== 'open') {
+      return res.status(400).json({ msg: 'Cannot delete missions that are in progress or completed' });
+    }
+    
+    // Notify applicants about the mission deletion before deleting
+    if (mission.applications && mission.applications.length > 0) {
+      for (const application of mission.applications) {
+        await createNotification(
+          application.applicantId,
+          `A mission you applied for "${mission.name}" has been deleted`,
+          null // No mission ID since it's being deleted
+        );
+      }
+    }
+    
+    await Mission.deleteOne({ _id: mission._id });
+    res.json({ msg: 'Mission removed' });
+  } catch (err) {
+    console.error(err.message);
+    if (err.kind === 'ObjectId') {
+      return res.status(404).json({ msg: 'Mission not found' });
+    }
+    res.status(500).send('Server error');
+  }
 }; 

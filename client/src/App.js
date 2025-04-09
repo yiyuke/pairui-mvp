@@ -13,6 +13,7 @@ import DesignerDashboard from './pages/DesignerDashboard';
 import CreateMission from './pages/CreateMission';
 import MissionDetails from './pages/MissionDetails';
 import Profile from './pages/Profile';
+import EditMission from './pages/EditMission';
 
 // Components
 import PrivateRoute from './components/PrivateRoute';
@@ -50,6 +51,11 @@ function App() {
               <Route path="/missions/:id" element={
                 <PrivateRoute>
                   <MissionDetails />
+                </PrivateRoute>
+              } />
+              <Route path="/missions/:id/edit" element={
+                <PrivateRoute>
+                  <EditMission />
                 </PrivateRoute>
               } />
               <Route path="/profile/:id" element={

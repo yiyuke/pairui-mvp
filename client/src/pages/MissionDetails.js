@@ -1,6 +1,6 @@
 // client/src/pages/MissionDetails.js
 import React, { useState, useEffect, useContext } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import AuthContext from '../context/AuthContext';
 import Navbar from '../components/Navbar';
@@ -240,13 +240,16 @@ const MissionDetails = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">{mission.name}</h1>
-          <span className={`px-3 py-1 rounded-full text-sm font-semibold
-            ${mission.status === 'open' ? 'bg-blue-100 text-blue-800' : 
-              mission.status === 'in-progress' ? 'bg-yellow-100 text-yellow-800' : 
-              'bg-green-100 text-green-800'}`}
-          >
-            {mission.status.charAt(0).toUpperCase() + mission.status.slice(1)}
-          </span>
+          <div className="flex items-center">
+            {isCreator && mission.status === 'open' && (
+              <Link 
+                to={`/missions/${mission._id}/edit`}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded"
+              >
+                Edit Mission
+              </Link>
+            )}
+          </div>
         </div>
         
         <button 
