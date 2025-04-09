@@ -260,7 +260,7 @@ exports.respondToApplication = async (req, res) => {
   }
 };
 
-// Submit work
+// Submit work - update to handle resubmissions
 exports.submitWork = async (req, res) => {
   const { submittedLink } = req.body;
   
@@ -280,9 +280,19 @@ exports.submitWork = async (req, res) => {
       return res.status(403).json({ msg: 'You are not the accepted applicant for this mission' });
     }
     
+    // Check if this is a resubmission
+    const isResubmission = application.submittedLink ? true : false;
+    
     // Update application with submitted link
     application.submittedLink = submittedLink;
     application.submittedAt = Date.now();
+    
+    // If this is a resubmission after revision was requested, clear the revision flag
+    if (application.revisionRequested) {
+      application.revisionRequested = false;
+      application.revisionComments = '';
+      application.revisionRequestedAt = null;
+    }
     
     await mission.save();
     
@@ -294,7 +304,9 @@ exports.submitWork = async (req, res) => {
     // After saving the mission
     await createNotification(
       mission.creatorId,
-      `The work for your mission "${mission.name}" has been submitted`,
+      isResubmission 
+        ? `Updated work for your mission "${mission.name}" has been submitted`
+        : `The work for your mission "${mission.name}" has been submitted`,
       mission._id
     );
     
@@ -341,13 +353,26 @@ exports.provideFeedback = async (req, res) => {
       comments
     };
     mission.status = 'completed';
+    mission.completedAt = Date.now();
     
-    // Transfer credits from creator to applicant
+    // Get both creator and applicant
+    const creator = await User.findById(mission.creatorId);
     const applicant = await User.findById(acceptedApplication.applicantId);
     
     if (!applicant) {
       return res.status(404).json({ msg: 'Applicant not found' });
     }
+    
+    if (!creator) {
+      return res.status(404).json({ msg: 'Creator not found' });
+    }
+    
+    // Deduct credits from creator
+    if (creator.credits < mission.credits) {
+      return res.status(400).json({ msg: 'Creator does not have enough credits' });
+    }
+    creator.credits -= mission.credits;
+    await creator.save();
     
     // Add credits to applicant
     applicant.credits += mission.credits;
@@ -473,9 +498,9 @@ exports.deleteMission = async (req, res) => {
   }
 };
 
-// Request revisions for submitted work
+// Request revision for a mission
 exports.requestRevision = async (req, res) => {
-  const { comments } = req.body;
+  const { revisionComments } = req.body;
   
   try {
     const mission = await Mission.findById(req.params.id);
@@ -500,20 +525,27 @@ exports.requestRevision = async (req, res) => {
     );
     
     if (!acceptedApplication) {
-      return res.status(400).json({ msg: 'No submitted work found to request revisions for' });
+      return res.status(400).json({ msg: 'No submitted work found to request revisions on' });
     }
     
-    // Create a notification for the applicant
-    await createNotification(
-      acceptedApplication.applicantId,
-      `The creator has requested revisions for your work on "${mission.name}": ${comments}`,
-      mission._id
-    );
+    // Add revision request to the application
+    acceptedApplication.revisionRequested = true;
+    acceptedApplication.revisionComments = revisionComments;
+    acceptedApplication.revisionRequestedAt = Date.now();
+    
+    await mission.save();
     
     // Populate user info before returning
     const updatedMission = await Mission.findById(mission._id)
       .populate('creatorId', 'username profile.avatar')
       .populate('applications.applicantId', 'username profile.avatar');
+      
+    // Create notification for the applicant
+    await createNotification(
+      acceptedApplication.applicantId,
+      `Revision requested for your work on the mission "${mission.name}". Please check the details.`,
+      mission._id
+    );
     
     res.json(updatedMission);
   } catch (err) {

@@ -55,4 +55,9 @@ router.delete('/:id', auth, missionController.deleteMission);
 // @access  Private
 router.post('/:id/request-revision', auth, missionController.requestRevision);
 
+// @route   PUT api/missions/:id/request-revision
+// @desc    Request revision for a mission
+// @access  Private
+router.put('/:id/request-revision', auth, missionController.requestRevision);
+
 module.exports = router; 

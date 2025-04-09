@@ -55,7 +55,13 @@ const missionSchema = new Schema({
       },
       rejectionNote: String,
       submittedLink: String,
-      submittedAt: Date
+      submittedAt: Date,
+      revisionRequested: {
+        type: Boolean,
+        default: false
+      },
+      revisionComments: String,
+      revisionRequestedAt: Date
     }
   ],
   feedback: {
@@ -65,6 +71,9 @@ const missionSchema = new Schema({
       max: 5
     },
     comments: String
+  },
+  completedAt: {
+    type: Date
   },
   createdAt: {
     type: Date,
