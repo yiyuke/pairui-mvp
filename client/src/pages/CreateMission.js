@@ -202,7 +202,7 @@ const CreateMission = () => {
             
             <div className="mb-6">
               <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="credits">
-                Credits
+                Credits (You have: {user.credits} available)
               </label>
               <input
                 className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
@@ -213,7 +213,13 @@ const CreateMission = () => {
                 onChange={onChange}
                 placeholder="Enter credit amount"
                 min="1"
+                max={user.credits}
               />
+              {parseInt(credits) > user.credits && (
+                <p className="text-red-500 text-xs italic mt-1">
+                  You don't have enough credits. Maximum available: {user.credits}
+                </p>
+              )}
             </div>
             
             <div className="flex items-center justify-between">

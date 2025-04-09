@@ -13,6 +13,17 @@ exports.createMission = async (req, res) => {
       return res.status(403).json({ msg: 'You must select a role before creating missions' });
     }
 
+    // Check if user has enough credits
+    if (user.credits < credits) {
+      return res.status(400).json({ 
+        msg: `Insufficient credits. You have ${user.credits} credits, but this mission requires ${credits} credits.` 
+      });
+    }
+
+    // Deduct credits from user
+    user.credits -= credits;
+    await user.save();
+
     const newMission = new Mission({
       name,
       context,
@@ -22,7 +33,7 @@ exports.createMission = async (req, res) => {
       credits,
       creatorId: req.user.id,
       creatorRole: user.role,
-      figmaLink: figmaLink || null // Make sure figmaLink is properly handled
+      figmaLink: figmaLink || null
     });
 
     const mission = await newMission.save();
@@ -331,24 +342,18 @@ exports.provideFeedback = async (req, res) => {
     };
     mission.status = 'completed';
     
-    await mission.save();
-    
     // Transfer credits from creator to applicant
-    const creator = await User.findById(mission.creatorId);
     const applicant = await User.findById(acceptedApplication.applicantId);
     
-    // Check if creator has enough credits
-    if (creator.credits >= mission.credits) {
-      // Deduct credits from creator
-      creator.credits -= mission.credits;
-      await creator.save();
-      
-      // Add credits to applicant
-      applicant.credits += mission.credits;
-      await applicant.save();
-    } else {
-      return res.status(400).json({ msg: 'Not enough credits to complete this mission' });
+    if (!applicant) {
+      return res.status(404).json({ msg: 'Applicant not found' });
     }
+    
+    // Add credits to applicant
+    applicant.credits += mission.credits;
+    await applicant.save();
+    
+    await mission.save();
     
     // Populate user info before returning
     const updatedMission = await Mission.findById(mission._id)
@@ -358,7 +363,7 @@ exports.provideFeedback = async (req, res) => {
     // After saving the mission
     await createNotification(
       acceptedApplication.applicantId,
-      `Feedback has been provided for your work on the mission "${mission.name}"`,
+      `Feedback has been provided for your work on the mission "${mission.name}". You received ${mission.credits} credits!`,
       mission._id
     );
     
@@ -441,6 +446,11 @@ exports.deleteMission = async (req, res) => {
       return res.status(400).json({ msg: 'Cannot delete missions that are in progress or completed' });
     }
     
+    // Return credits to the creator
+    const user = await User.findById(req.user.id);
+    user.credits += mission.credits;
+    await user.save();
+    
     // Notify applicants about the mission deletion before deleting
     if (mission.applications && mission.applications.length > 0) {
       for (const application of mission.applications) {
@@ -453,12 +463,61 @@ exports.deleteMission = async (req, res) => {
     }
     
     await Mission.deleteOne({ _id: mission._id });
-    res.json({ msg: 'Mission removed' });
+    res.json({ msg: 'Mission removed', creditsReturned: mission.credits });
   } catch (err) {
     console.error(err.message);
     if (err.kind === 'ObjectId') {
       return res.status(404).json({ msg: 'Mission not found' });
     }
+    res.status(500).send('Server error');
+  }
+};
+
+// Request revisions for submitted work
+exports.requestRevision = async (req, res) => {
+  const { comments } = req.body;
+  
+  try {
+    const mission = await Mission.findById(req.params.id);
+    
+    if (!mission) {
+      return res.status(404).json({ msg: 'Mission not found' });
+    }
+    
+    // Check if user is the creator of this mission
+    if (mission.creatorId.toString() !== req.user.id) {
+      return res.status(403).json({ msg: 'Not authorized' });
+    }
+    
+    // Check if mission is in progress
+    if (mission.status !== 'in-progress') {
+      return res.status(400).json({ msg: 'Mission must be in progress to request revisions' });
+    }
+    
+    // Check if there's an accepted applicant who submitted work
+    const acceptedApplication = mission.applications.find(
+      app => app.status === 'accepted' && app.submittedLink
+    );
+    
+    if (!acceptedApplication) {
+      return res.status(400).json({ msg: 'No submitted work found to request revisions for' });
+    }
+    
+    // Create a notification for the applicant
+    await createNotification(
+      acceptedApplication.applicantId,
+      `The creator has requested revisions for your work on "${mission.name}": ${comments}`,
+      mission._id
+    );
+    
+    // Populate user info before returning
+    const updatedMission = await Mission.findById(mission._id)
+      .populate('creatorId', 'username profile.avatar')
+      .populate('applications.applicantId', 'username profile.avatar');
+    
+    res.json(updatedMission);
+  } catch (err) {
+    console.error(err.message);
     res.status(500).send('Server error');
   }
 }; 
