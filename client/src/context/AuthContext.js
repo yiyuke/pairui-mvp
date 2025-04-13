@@ -55,7 +55,24 @@ export const AuthProvider = ({ children }) => {
       await loadUser();
       return user; // Return the user object for redirect logic
     } catch (err) {
-      setError(err.response?.data?.msg || 'Login failed');
+      // Add more specific error message handling
+      if (err.response) {
+        // If the error has a response, check status
+        if (err.response.status === 400) {
+          // Check for specific error messages from backend
+          if (err.response.data.msg === 'Invalid credentials') {
+            err.response.data.msg = 'Email and password do not match';
+          } else if (err.response.data.msg && err.response.data.msg.includes('User')) {
+            err.response.data.msg = 'Email not registered. Please create an account.';
+          }
+        }
+      } else if (err.request) {
+        // Network error
+        err.response = { data: { msg: 'Network error. Please try again later.' } };
+      } else {
+        // Something else happened
+        err.response = { data: { msg: 'Login failed. Please try again.' } };
+      }
       throw err;
     }
   };

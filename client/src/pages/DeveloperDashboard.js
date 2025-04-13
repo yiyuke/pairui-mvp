@@ -7,8 +7,9 @@ import MissionSearch from '../components/MissionSearch';
 
 const DeveloperDashboard = () => {
   const { user, refreshUser } = useContext(AuthContext);
-  const [myMissions, setMyMissions] = useState([]);
-  const [availableDesignMissions, setAvailableDesignMissions] = useState([]);
+  const [myCreatedMissions, setMyCreatedMissions] = useState([]);
+  const [myApplications, setMyApplications] = useState([]);
+  const [availableDevMissions, setAvailableDevMissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filteredMissions, setFilteredMissions] = useState([]);
@@ -19,6 +20,9 @@ const DeveloperDashboard = () => {
       console.log('User not available yet, waiting...');
       return;
     }
+
+    const controller = new AbortController();
+    const signal = controller.signal;
     
     const fetchMissions = async () => {
       try {
@@ -34,39 +38,58 @@ const DeveloperDashboard = () => {
         const res = await axios.get('http://localhost:5001/api/missions', {
           headers: {
             'x-auth-token': token
-          }
+          },
+          signal
         });
         
         console.log('Missions data received:', res.data.length, 'missions');
         
         // Filter missions created by this developer
-        const myMissions = res.data.filter(mission => 
+        const createdMissions = res.data.filter(mission => 
           mission.creatorId && 
           (typeof mission.creatorId === 'object' ? 
             mission.creatorId._id === user._id : 
             mission.creatorId === user._id)
         );
         
-        // Filter available design missions (created by designers)
-        const availableDesignMissions = res.data.filter(mission => 
+        // Filter missions the developer has applied to
+        const appliedMissions = res.data.filter(mission => 
+          mission.applications && mission.applications.some(app => 
+            app.applicantId && (typeof app.applicantId === 'object' ? 
+              app.applicantId._id === user._id : 
+              app.applicantId === user._id)
+          )
+        );
+        
+        // Filter available development missions (created by designers)
+        const availableDevMissions = res.data.filter(mission => 
           mission.status === 'open' && mission.creatorRole === 'designer'
         );
         
-        console.log('My missions:', myMissions.length);
-        console.log('Available design missions:', availableDesignMissions.length);
+        console.log('My created missions:', createdMissions.length);
+        console.log('My applications:', appliedMissions.length);
+        console.log('Available development missions:', availableDevMissions.length);
         
-        setMyMissions(myMissions);
-        setAvailableDesignMissions(availableDesignMissions);
-        setFilteredMissions(availableDesignMissions);
+        setMyCreatedMissions(createdMissions);
+        setMyApplications(appliedMissions);
+        setAvailableDevMissions(availableDevMissions);
+        setFilteredMissions(availableDevMissions);
         setLoading(false);
       } catch (err) {
-        console.error('Error fetching missions:', err);
-        setError('Failed to fetch missions');
-        setLoading(false);
+        if (!axios.isCancel(err)) {
+          console.error('Error fetching missions:', err);
+          setError('Failed to fetch missions');
+          setLoading(false);
+        }
       }
     };
     
     fetchMissions();
+    
+    // Clean up
+    return () => {
+      controller.abort();
+    };
   }, [user]);
 
   useEffect(() => {
@@ -88,6 +111,19 @@ const DeveloperDashboard = () => {
     }
   };
 
+  const getApplicationStatusClass = (status) => {
+    switch(status) {
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'accepted':
+        return 'bg-green-100 text-green-800';
+      case 'rejected':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
   const formatDate = (dateString) => {
     const options = { year: 'numeric', month: 'long', day: 'numeric' };
     return new Date(dateString).toLocaleDateString(undefined, options);
@@ -96,7 +132,7 @@ const DeveloperDashboard = () => {
   const handleSearch = (filters) => {
     setSearchFilters(filters);
     
-    let filtered = [...availableDesignMissions];
+    let filtered = [...availableDevMissions];
     
     // Filter by search term
     if (filters.searchTerm) {
@@ -120,7 +156,7 @@ const DeveloperDashboard = () => {
 
   const missionsToDisplay = searchFilters.searchTerm || searchFilters.uiLibrary 
     ? filteredMissions 
-    : availableDesignMissions;
+    : availableDevMissions;
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -132,7 +168,7 @@ const DeveloperDashboard = () => {
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <h2 className="text-xl font-semibold mb-4">Welcome, {user?.username}</h2>
           <p className="text-gray-600 mb-4">
-            This is your developer dashboard where you can create and manage your missions.
+            This is your developer dashboard where you can create design missions and apply for development missions.
           </p>
           
           <Link 
@@ -144,13 +180,13 @@ const DeveloperDashboard = () => {
         </div>
         
         <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-4">Your Missions</h2>
+          <h2 className="text-xl font-semibold mb-4">My Created Missions</h2>
           
           {loading ? (
             <p className="text-gray-600">Loading your missions...</p>
           ) : error ? (
             <p className="text-red-600">{error}</p>
-          ) : myMissions.length === 0 ? (
+          ) : myCreatedMissions.length === 0 ? (
             <p className="text-gray-600">You haven't created any missions yet.</p>
           ) : (
             <div className="overflow-x-auto">
@@ -165,7 +201,58 @@ const DeveloperDashboard = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {myMissions.map(mission => (
+                  {myCreatedMissions.map(mission => (
+                    <tr key={mission._id} className="border-b hover:bg-gray-50">
+                      <td className="py-3 px-4">
+                        <div className="font-medium">{mission.name}</div>
+                        <div className="text-sm text-gray-500">{mission.uiLibrary}</div>
+                      </td>
+                      <td className="py-3 px-4">{formatDate(mission.dueDate)}</td>
+                      <td className="py-3 px-4">{mission.credits}</td>
+                      <td className="py-3 px-4">
+                        <span className={`px-2 py-1 rounded-full text-xs ${getMissionStatusClass(mission.status)}`}>
+                          {mission.status.charAt(0).toUpperCase() + mission.status.slice(1)}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <Link 
+                          to={`/missions/${mission._id}`}
+                          className="text-indigo-600 hover:text-indigo-800"
+                        >
+                          View Details
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+        
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-4">My Applications</h2>
+          
+          {loading ? (
+            <p className="text-gray-600">Loading your applications...</p>
+          ) : error ? (
+            <p className="text-red-600">{error}</p>
+          ) : myApplications.length === 0 ? (
+            <p className="text-gray-600">You haven't applied to any missions yet.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full bg-white">
+                <thead>
+                  <tr className="bg-gray-100 border-b">
+                    <th className="py-3 px-4 text-left">Mission</th>
+                    <th className="py-3 px-4 text-left">Due Date</th>
+                    <th className="py-3 px-4 text-left">Credits</th>
+                    <th className="py-3 px-4 text-left">Status</th>
+                    <th className="py-3 px-4 text-left">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {myApplications.map(mission => (
                     <tr key={mission._id} className="border-b hover:bg-gray-50">
                       <td className="py-3 px-4">
                         <div className="font-medium">{mission.name}</div>
@@ -195,7 +282,7 @@ const DeveloperDashboard = () => {
         </div>
         
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-semibold mb-4">Available Design Missions</h2>
+          <h2 className="text-xl font-semibold mb-4">Available Development Missions</h2>
           
           <MissionSearch onSearch={handleSearch} />
           

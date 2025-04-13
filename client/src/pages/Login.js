@@ -1,60 +1,68 @@
 import React, { useState, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
+import NotificationContext from '../context/NotificationContext';
 
 const Login = () => {
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
-  const [formError, setFormError] = useState('');
+  const [loginError, setLoginError] = useState('');
   
-  const { login, error } = useContext(AuthContext);
+  const { login } = useContext(AuthContext);
+  const { addNotification } = useContext(NotificationContext);
   const navigate = useNavigate();
 
   const { email, password } = formData;
 
   const onChange = e => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+    setLoginError(''); // Clear error when user types
   };
 
   const onSubmit = async e => {
     e.preventDefault();
     
     if (!email || !password) {
-      setFormError('Please fill in all fields');
+      setLoginError('Please fill in all fields');
       return;
     }
     
-    const user = await login(formData);
-    
-    if (user) {
-      // Check if user already has a role
-      if (user.role) {
-        // Go directly to the appropriate dashboard
-        navigate(`/${user.role}/dashboard`);
-      } else {
-        // If no role is set, go to choose-role page
-        navigate('/choose-role');
+    try {
+      const user = await login(formData);
+      
+      if (user) {
+        // Check if user already has a role
+        if (user.role) {
+          // Go directly to the appropriate dashboard
+          navigate(`/${user.role}/dashboard`);
+        } else {
+          // If no role is set, go to choose-role page
+          navigate('/choose-role');
+        }
       }
+    } catch (err) {
+      const errorMessage = err.response?.data?.msg || 'Invalid credentials';
+      setLoginError(errorMessage);
     }
   };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow-md">
+      <div className="w-full max-w-md p-8 space-y-4 bg-white rounded-lg shadow-md">
         <div className="text-center">
           <h1 className="text-3xl font-extrabold text-gray-900">Sign In</h1>
           <p className="mt-2 text-gray-600">Access your PairUI account</p>
         </div>
         
-        {(formError || error) && (
-          <div className="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg">
-            {formError || error}
+        {loginError && (
+          <div className="text-center text-red-600 text-sm mb-1">
+            {loginError}
           </div>
         )}
         
-        <form className="mt-8 space-y-6" onSubmit={onSubmit}>
+        <form className="space-y-4" onSubmit={onSubmit}>
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700">
               Email Address

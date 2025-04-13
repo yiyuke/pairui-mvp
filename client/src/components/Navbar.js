@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 import defaultDeveloperAvatar from '../assets/images/default-developer-avatar.png';
 import defaultDesignerAvatar from '../assets/images/default-designer-avatar.png';
+import logo from '../assets/images/logo.png';
 import NotificationIcon from './NotificationIcon';
 
 const Navbar = () => {
@@ -43,7 +44,10 @@ const Navbar = () => {
     <nav className="bg-white shadow-md">
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center py-4">
-          <Link to="/" className="text-2xl font-bold text-indigo-600">PairUI</Link>
+          <Link to="/" className="text-2xl font-bold text-indigo-600 flex items-center">
+            <img src={logo} alt="PairUI Logo" className="h-8 mr-2" />
+            PairUI
+          </Link>
           
           <div className="flex items-center space-x-4">
             {user ? (

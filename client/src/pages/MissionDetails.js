@@ -520,47 +520,6 @@ const MissionDetails = () => {
                       </a>
                     </div>
                     
-                    {/* Show revision request if any */}
-                    {userApplication.revisionRequested && (
-                      <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                        <h3 className="font-semibold text-yellow-800 mb-2">Revision Requested</h3>
-                        <p className="text-sm text-yellow-700 mb-2">
-                          The mission creator has requested revisions to your submission:
-                        </p>
-                        <div className="bg-white p-3 rounded border border-yellow-200 mb-3">
-                          <p className="text-gray-700">{userApplication.revisionComments}</p>
-                        </div>
-                        <p className="text-sm text-yellow-700 mb-4">
-                          Requested on: {new Date(userApplication.revisionRequestedAt).toLocaleString()}
-                        </p>
-                        
-                        {/* Resubmission form */}
-                        <div className="mt-4">
-                          <h4 className="font-medium text-gray-700 mb-2">Resubmit Your Work</h4>
-                          <div className="mb-3">
-                            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="newSubmission">
-                              New Submission Link:
-                            </label>
-                            <input
-                              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                              id="newSubmission"
-                              type="text"
-                              value={figmaLink}
-                              onChange={(e) => setFigmaLink(e.target.value)}
-                              placeholder="Enter your new submission link"
-                            />
-                          </div>
-                          <button
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-                            onClick={handleResubmit}
-                            disabled={!figmaLink || submitting}
-                          >
-                            {submitting ? 'Resubmitting...' : 'Resubmit Work'}
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                    
                     {userApplication && userApplication.status === 'accepted' && userApplication.submittedLink && (
                       <>
                         {mission.status === 'completed' ? (
@@ -613,9 +572,6 @@ const MissionDetails = () => {
                             <div className="mt-4">
                               <h4 className="font-medium text-gray-700 mb-2">Resubmit Your Work</h4>
                               <div className="mb-3">
-                                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="newSubmission">
-                                  New Submission Link:
-                                </label>
                                 <input
                                   className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
                                   id="newSubmission"
@@ -809,14 +765,45 @@ const MissionDetails = () => {
                 <div className="mt-4 mb-6">
                   {/* Figma Preview */}
                   {acceptedApplication.submittedLink.includes('figma.com') && (
-                    <div className="border rounded-lg overflow-hidden" style={{ height: '400px' }}>
-                      <iframe 
-                        title="Figma Preview"
-                        width="100%" 
-                        height="100%" 
-                        src={`${acceptedApplication.submittedLink.replace('file', 'embed')}`}
-                        allowFullScreen
-                      ></iframe>
+                    <div>
+                      <div className="border rounded-lg overflow-hidden" style={{ height: '400px' }}>
+                        <iframe 
+                          title="Figma Preview"
+                          width="100%" 
+                          height="100%" 
+                          src={(() => {
+                            const url = new URL(acceptedApplication.submittedLink);
+                            
+                            // Handle design URLs (often community or shared designs)
+                            if (url.pathname.includes('/design/')) {
+                              // Extract the file key (comes after /design/)
+                              const fileKey = url.pathname.split('/design/')[1].split('/')[0];
+                              // Construct a proper embed URL
+                              return `https://www.figma.com/embed?embed_host=share&url=https://www.figma.com/file/${fileKey}`;
+                            }
+                            
+                            // Handle file URLs (standard Figma files)
+                            else if (url.pathname.includes('/file/')) {
+                              return acceptedApplication.submittedLink.replace('/file/', '/embed/');
+                            }
+                            
+                            // Handle proto URLs (prototypes)
+                            else if (url.pathname.includes('/proto/')) {
+                              return acceptedApplication.submittedLink.replace('/proto/', '/embed/proto/');
+                            }
+                            
+                            // If none of the above, just return the original
+                            return acceptedApplication.submittedLink;
+                          })()}
+                          allowFullScreen
+                          onError={(e) => {
+                            console.error("Figma embed error:", e);
+                          }}
+                        ></iframe>
+                      </div>
+                      <p className="mt-2 text-sm text-gray-500">
+                        Note: To enable Figma previews, the designer must set the Figma file to "Anyone with the link" in the Share settings.
+                      </p>
                     </div>
                   )}
                   
