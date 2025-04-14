@@ -1,6 +1,6 @@
-# PairUI Platform MVP
+# PairUI
 
-A platform connecting designers and developers for collaborative projects.
+PairUI is a collaborative platform that connects designers and developers for project work. Designers can apply for missions created by developers, submit their Figma designs, and receive feedback, while developers can create missions, review applications, and provide ratings.
 
 ## Features
 
@@ -12,19 +12,7 @@ A platform connecting designers and developers for collaborative projects.
 - Designers can submit Figma designs
 - Developers can provide feedback and ratings
 
-## Tech Stack
-
-- **Frontend**: React, Tailwind CSS
-- **Backend**: Node.js, Express
-- **Database**: MongoDB
-- **Authentication**: JWT
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js
-- MongoDB
+## Local Deployment
 
 ### Installation
 
@@ -46,7 +34,7 @@ A platform connecting designers and developers for collaborative projects.
    npm install
    ```
 
-4. Create a `.env` file in the config directory with the following variables:
+4. Create a `.env` file in the server directory with the following variables:
    ```
    MONGO_URI=your_mongodb_connection_string
    JWT_SECRET=your_jwt_secret
@@ -68,20 +56,3 @@ A platform connecting designers and developers for collaborative projects.
    ```
 
 3. Open your browser and navigate to `http://localhost:3000`
-
-## Project Structure
-
-/pairui-mvp
-├── /client (React front-end)
-│   ├── /public
-│   ├── /src
-│   └── package.json
-├── /server (Node.js back-end)
-│   ├── /controllers
-│   ├── /models
-│   ├── /routes
-│   ├── /middleware
-│   ├── app.js
-│   └── package.json
-├── /config
-└── .gitignore

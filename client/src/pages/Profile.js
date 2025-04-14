@@ -84,16 +84,32 @@ const Profile = () => {
       
       console.log('Updating profile data:', profileData);
       
-      await axios.put(
-        'http://localhost:5001/api/users/profile',
-        profileData,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'x-auth-token': localStorage.getItem('token')
+      try {
+        await axios.put(
+          'http://localhost:5001/api/users/profile',
+          profileData,
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'x-auth-token': localStorage.getItem('token')
+            }
           }
+        );
+      } catch (profileUpdateErr) {
+        console.error('Error updating profile data:', profileUpdateErr);
+        if (profileUpdateErr.response) {
+          console.error('Profile update response data:', profileUpdateErr.response.data);
+          console.error('Profile update response status:', profileUpdateErr.response.status);
+          
+          // Extract detailed error message if available
+          const errorMsg = profileUpdateErr.response.data.error 
+            ? `Error: ${profileUpdateErr.response.data.error}`
+            : profileUpdateErr.response.data.msg || 'Failed to update profile';
+            
+          throw new Error(errorMsg);
         }
-      );
+        throw profileUpdateErr;
+      }
       
       // If username or role changed, update user data
       if (formData.username !== user.username || formData.role !== user.role) {

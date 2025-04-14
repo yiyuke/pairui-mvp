@@ -141,30 +141,101 @@ exports.updateProfile = async (req, res) => {
   const { bio, avatar, skills, portfolio } = req.body;
   
   try {
+    console.log('Profile update request received');
+    console.log('Bio length:', bio ? bio.length : 0);
+    console.log('Avatar data length:', avatar ? avatar.length : 0);
+    console.log('Skills:', skills);
+    console.log('Portfolio:', portfolio);
+    
     // Build profile object
     const profileFields = {};
-    if (bio !== undefined) profileFields.bio = bio;
-    if (avatar !== undefined) {
-      // If it's a base64 image, you might want to:
-      // 1. Validate it's a proper image
-      // 2. Potentially resize/compress it
-      // 3. Consider storing in a service like AWS S3 instead of the database
-      profileFields.avatar = avatar;
+    
+    // Add bio field
+    if (bio !== undefined) {
+      console.log('Adding bio to profile fields');
+      profileFields.bio = bio;
     }
-    if (skills !== undefined) profileFields.skills = skills.split(',').map(skill => skill.trim());
-    if (portfolio !== undefined) profileFields.portfolio = portfolio;
+    
+    // Add avatar field if provided
+    if (avatar !== undefined) {
+      console.log('Processing avatar data');
+      // Check if avatar is too large
+      if (avatar && avatar.length > 1000000) {
+        console.log('Avatar is too large:', avatar.length);
+        return res.status(400).json({ msg: 'Avatar image is too large. Please use a smaller image (less than 1MB).' });
+      }
+      
+      // If avatar is empty string, keep it as is
+      if (avatar === '') {
+        profileFields.avatar = '';
+      } else if (avatar) {
+        // Only process non-empty avatar data
+        console.log('Adding avatar to profile fields');
+        profileFields.avatar = avatar;
+      }
+    }
+    
+    // Add skills field if provided
+    if (skills !== undefined) {
+      console.log('Processing skills');
+      try {
+        if (skills === '') {
+          profileFields.skills = [];
+        } else {
+          profileFields.skills = skills.split(',').map(skill => skill.trim());
+        }
+        console.log('Skills processed:', profileFields.skills);
+      } catch (error) {
+        console.error('Error processing skills:', error);
+        return res.status(400).json({ msg: 'Invalid skills format. Please provide comma-separated skills.' });
+      }
+    }
+    
+    // Add portfolio field if provided
+    if (portfolio !== undefined) {
+      console.log('Processing portfolio URL');
+      // Allow empty portfolio URL
+      if (portfolio === '') {
+        profileFields.portfolio = '';
+      } else if (portfolio && !portfolio.startsWith('http')) {
+        console.log('Invalid portfolio URL:', portfolio);
+        return res.status(400).json({ msg: 'Portfolio URL must start with http:// or https://' });
+      } else {
+        profileFields.portfolio = portfolio;
+      }
+    }
+    
+    console.log('Final profile fields:', JSON.stringify(profileFields));
     
     // Update user
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      { $set: { profile: profileFields } },
-      { new: true }
-    ).select('-password');
-    
-    res.json(user);
+    try {
+      console.log('Updating user profile in database');
+      const user = await User.findByIdAndUpdate(
+        req.user.id,
+        { $set: { profile: profileFields } },
+        { new: true }
+      ).select('-password');
+      
+      if (!user) {
+        console.log('User not found');
+        return res.status(404).json({ msg: 'User not found' });
+      }
+      
+      console.log('Profile updated successfully');
+      res.json(user);
+    } catch (dbError) {
+      console.error('Database error during update:', dbError);
+      return res.status(500).json({ 
+        msg: 'Database error during update', 
+        error: dbError.message,
+        code: dbError.code
+      });
+    }
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server error');
+    console.error('Profile update error:', err.message);
+    console.error('Error stack:', err.stack);
+    console.error('Full error:', err);
+    res.status(500).json({ msg: 'Server error', error: err.message });
   }
 };
 

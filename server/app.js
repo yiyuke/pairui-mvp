@@ -77,8 +77,16 @@ process.on('unhandledRejection', (err) => {
 
 // Add this at the end of your middleware setup
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).send('Something broke!');
+  console.error('Global error handler caught:');
+  console.error('Error message:', err.message);
+  console.error('Error stack:', err.stack);
+  
+  // Send a more detailed error response
+  res.status(500).json({
+    message: 'Something broke!',
+    error: err.message,
+    path: req.path
+  });
 });
 
 module.exports = app; 
