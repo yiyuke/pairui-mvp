@@ -42,8 +42,18 @@ app.get('/test', (req, res) => {
 const mongoURI = process.env.MONGO_URI;
 console.log('Attempting to connect to MongoDB with URI:', mongoURI);
 
-// Connect to MongoDB
-mongoose.connect(mongoURI)
+// Connect to MongoDB with options
+mongoose.connect(mongoURI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  serverSelectionTimeoutMS: 5000, // 5 seconds
+  socketTimeoutMS: 45000, // 45 seconds
+  connectTimeoutMS: 10000, // 10 seconds
+  retryWrites: true,
+  retryReads: true,
+  maxPoolSize: 10,
+  minPoolSize: 5
+})
   .then(() => {
     console.log('MongoDB Connected');
     
@@ -66,6 +76,10 @@ mongoose.connect(mongoURI)
   })
   .catch(err => {
     console.error('MongoDB connection error:', err.message);
+    console.error('Connection details:', {
+      uri: mongoURI.replace(/\/\/[^:]+:[^@]+@/, '//***:***@'), // Hide credentials in logs
+      options: mongoose.connection.options
+    });
     console.log('Server will not start due to database connection failure');
     process.exit(1);
   });

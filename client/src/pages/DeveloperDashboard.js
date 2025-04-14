@@ -4,6 +4,7 @@ import AuthContext from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import axios from 'axios';
 import MissionSearch from '../components/MissionSearch';
+import { retryRequest } from '../utils/axiosConfig';
 
 const DeveloperDashboard = () => {
   const { user, refreshUser } = useContext(AuthContext);
@@ -35,11 +36,10 @@ const DeveloperDashboard = () => {
           return;
         }
         
-        const res = await axios.get('http://localhost:5001/api/missions', {
-          headers: {
-            'x-auth-token': token
-          },
-          signal
+        console.log('Making API request to fetch missions');
+        const res = await retryRequest({
+          method: 'get',
+          url: '/missions'
         });
         
         console.log('Missions data received:', res.data.length, 'missions');
@@ -183,7 +183,14 @@ const DeveloperDashboard = () => {
           <h2 className="text-xl font-semibold mb-4">My Created Missions</h2>
           
           {loading ? (
-            <p className="text-gray-600">Loading your missions...</p>
+            <div className="flex items-center justify-center py-8">
+              <div className="text-center">
+                <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-indigo-600 border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
+                  <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">Loading...</span>
+                </div>
+                <p className="mt-4 text-gray-600">Loading your missions...</p>
+              </div>
+            </div>
           ) : error ? (
             <p className="text-red-600">{error}</p>
           ) : myCreatedMissions.length === 0 ? (
@@ -234,7 +241,14 @@ const DeveloperDashboard = () => {
           <h2 className="text-xl font-semibold mb-4">My Applications</h2>
           
           {loading ? (
-            <p className="text-gray-600">Loading your applications...</p>
+            <div className="flex items-center justify-center py-8">
+              <div className="text-center">
+                <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-indigo-600 border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
+                  <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">Loading...</span>
+                </div>
+                <p className="mt-4 text-gray-600">Loading your applications...</p>
+              </div>
+            </div>
           ) : error ? (
             <p className="text-red-600">{error}</p>
           ) : myApplications.length === 0 ? (
@@ -287,11 +301,18 @@ const DeveloperDashboard = () => {
           <MissionSearch onSearch={handleSearch} />
           
           {loading ? (
-            <p className="text-gray-600 mt-4">Loading missions...</p>
+            <div className="flex items-center justify-center py-8">
+              <div className="text-center">
+                <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-indigo-600 border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
+                  <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">Loading...</span>
+                </div>
+                <p className="mt-4 text-gray-600">Loading available missions...</p>
+              </div>
+            </div>
           ) : error ? (
-            <p className="text-red-600 mt-4">{error}</p>
+            <p className="text-red-600">{error}</p>
           ) : missionsToDisplay.length === 0 ? (
-            <p className="text-gray-600 mt-4">No available missions found.</p>
+            <p className="text-gray-600">No available missions found.</p>
           ) : (
             <div className="overflow-x-auto mt-4">
               <table className="min-w-full bg-white">
