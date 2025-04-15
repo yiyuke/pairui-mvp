@@ -3,7 +3,7 @@ import React, { useContext, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 import Navbar from '../components/Navbar';
-import axios from 'axios';
+import { retryRequest } from '../utils/axiosConfig';
 import MissionSearch from '../components/MissionSearch';
 
 const DesignerDashboard = () => {
@@ -17,6 +17,9 @@ const DesignerDashboard = () => {
   const [searchFilters, setSearchFilters] = useState({ searchTerm: '', uiLibrary: '' });
   
   useEffect(() => {
+    console.log('DesignerDashboard useEffect triggered');
+    console.log('User object:', user);
+    
     if (!user || !user._id) {
       console.log('User not available yet, waiting...');
       return;
@@ -26,17 +29,19 @@ const DesignerDashboard = () => {
       try {
         console.log('Fetching missions for designer:', user._id);
         const token = localStorage.getItem('token');
+        console.log('Token available:', !!token);
         
         if (!token) {
+          console.log('No token found in localStorage');
           setError('Authentication token not found');
           setLoading(false);
           return;
         }
         
-        const res = await axios.get('http://localhost:5001/api/missions', {
-          headers: {
-            'x-auth-token': token
-          }
+        console.log('Making API request to fetch missions');
+        const res = await retryRequest({
+          method: 'get',
+          url: '/missions'
         });
         
         console.log('Missions data received:', res.data.length, 'missions');
@@ -68,9 +73,11 @@ const DesignerDashboard = () => {
         console.log('Created missions:', createdMissions.length);
         setMyCreatedMissions(createdMissions);
         
+        console.log('Setting loading to false');
         setLoading(false);
       } catch (err) {
         console.error('Error fetching missions:', err);
+        console.error('Error details:', err.response || err.message);
         setError('Failed to fetch missions');
         setLoading(false);
       }

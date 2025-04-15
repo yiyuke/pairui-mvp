@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect } from 'react';
 import axios from 'axios';
-import { jwtDecode } from 'jwt-decode';
+import { retryRequest } from '../utils/axiosConfig';
 
 const AuthContext = createContext();
 
@@ -15,7 +15,9 @@ export const AuthProvider = ({ children }) => {
     const loadUser = async () => {
       if (localStorage.token) {
         try {
-          const res = await axios.get('http://localhost:5001/api/users/current', {
+          const res = await retryRequest({
+            method: 'get',
+            url: 'http://localhost:5001/api/users/current',
             headers: {
               'x-auth-token': localStorage.token
             }
@@ -38,7 +40,11 @@ export const AuthProvider = ({ children }) => {
   // Register user
   const register = async (username, email, password) => {
     try {
-      const res = await axios.post('http://localhost:5001/api/users/register', { username, email, password });
+      const res = await retryRequest({
+        method: 'post',
+        url: 'http://localhost:5001/api/users/register',
+        data: { username, email, password }
+      });
       localStorage.setItem('token', res.data.token);
       await loadUser();
       return true;
@@ -50,7 +56,11 @@ export const AuthProvider = ({ children }) => {
   // Login user
   const login = async (formData) => {
     try {
-      const res = await axios.post('http://localhost:5001/api/users/login', formData);
+      const res = await retryRequest({
+        method: 'post',
+        url: 'http://localhost:5001/api/users/login',
+        data: formData
+      });
       localStorage.setItem('token', res.data.token);
       await loadUser();
       return user; // Return the user object for redirect logic
@@ -87,67 +97,74 @@ export const AuthProvider = ({ children }) => {
   // Set user role
   const setRole = async (role) => {
     try {
-      const res = await axios.put(
-        'http://localhost:5001/api/users/role',
-        { role },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'x-auth-token': localStorage.getItem('token')
-          }
+      const res = await retryRequest({
+        method: 'put',
+        url: 'http://localhost:5001/api/users/role',
+        data: { role },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-auth-token': localStorage.getItem('token')
         }
-      );
+      });
       setUser(res.data);
-      return true;
+      return res.data;
     } catch (err) {
-      throw err.response.data;
+      console.error('Error setting role:', err);
+      throw err;
     }
   };
 
   // Refresh user data
   const refreshUser = async () => {
     if (!localStorage.token) {
-      console.error('No token found when trying to refresh user');
-      return false;
+      return;
     }
     
     try {
-      const res = await axios.get('http://localhost:5001/api/users/current', {
+      const res = await retryRequest({
+        method: 'get',
+        url: 'http://localhost:5001/api/users/current',
         headers: {
           'x-auth-token': localStorage.token
         }
       });
       setUser(res.data);
-      return true;
+      setIsAuthenticated(true);
+      return res.data;
     } catch (err) {
       console.error('Error refreshing user:', err);
-      if (err.response) {
-        console.error('Response data:', err.response.data);
-        console.error('Response status:', err.response.status);
-      }
-      return false;
+      localStorage.removeItem('token');
+      setUser(null);
+      setIsAuthenticated(false);
+      throw err;
     }
   };
 
-  // Load user function to be used externally
+  // Load user data
   const loadUser = async () => {
-    if (localStorage.token) {
-      try {
-        const res = await axios.get('http://localhost:5001/api/users/current', {
-          headers: {
-            'x-auth-token': localStorage.token
-          }
-        });
-        setUser(res.data);
-        setIsAuthenticated(true);
-      } catch (err) {
-        console.error('Error loading user:', err);
-        localStorage.removeItem('token');
-        setUser(null);
-        setIsAuthenticated(false);
-      }
+    if (!localStorage.token) {
+      setLoading(false);
+      return;
     }
-    setLoading(false);
+    
+    try {
+      const res = await retryRequest({
+        method: 'get',
+        url: 'http://localhost:5001/api/users/current',
+        headers: {
+          'x-auth-token': localStorage.token
+        }
+      });
+      setUser(res.data);
+      setIsAuthenticated(true);
+      setLoading(false);
+    } catch (err) {
+      console.error('Error loading user:', err);
+      localStorage.removeItem('token');
+      setUser(null);
+      setIsAuthenticated(false);
+      setLoading(false);
+    }
   };
 
   return (

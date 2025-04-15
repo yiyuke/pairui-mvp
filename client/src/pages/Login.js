@@ -9,6 +9,7 @@ const Login = () => {
     password: ''
   });
   const [loginError, setLoginError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   
   const { login } = useContext(AuthContext);
   const { addNotification } = useContext(NotificationContext);
@@ -29,6 +30,8 @@ const Login = () => {
       return;
     }
     
+    setIsLoading(true);
+    
     try {
       const user = await login(formData);
       
@@ -45,6 +48,8 @@ const Login = () => {
     } catch (err) {
       const errorMessage = err.response?.data?.msg || 'Invalid credentials';
       setLoginError(errorMessage);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -96,16 +101,20 @@ const Login = () => {
           <div>
             <button
               type="submit"
-              className="w-full px-4 py-2 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              disabled={isLoading}
+              className={`w-full px-4 py-2 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
             >
-              Sign In
+              {isLoading ? 'Signing in...' : 'Sign In'}
             </button>
           </div>
         </form>
         
-        <div className="text-center mt-4">
-          <p className="text-sm text-gray-600">
-            Don't have an account? <Link to="/register" className="font-medium text-indigo-600 hover:text-indigo-500">Register</Link>
+        <div className="text-center text-sm">
+          <p className="text-gray-600">
+            Don't have an account?{' '}
+            <Link to="/register" className="font-medium text-indigo-600 hover:text-indigo-500">
+              Sign up
+            </Link>
           </p>
         </div>
       </div>
