@@ -12,6 +12,14 @@ PairUI is a collaborative platform that connects designers and developers for pr
 - Designers can submit Figma designs
 - Developers can provide feedback and ratings
 
+## Tech Stack
+
+- **Frontend**: React.js, React Router, Tailwind CSS
+- **Backend**: Node.js, Express.js
+- **Database**: MongoDB with Mongoose
+- **Authentication**: JWT with bcryptjs
+- **API Communication**: Axios
+
 ## Local Deployment
 
 ### Installation
@@ -36,8 +44,8 @@ PairUI is a collaborative platform that connects designers and developers for pr
 
 4. Create a `.env` file in the server directory with the following variables:
    ```
-   MONGO_URI=your_mongodb_connection_string
-   JWT_SECRET=your_jwt_secret
+   MONGO_URI=mongodb+srv://pairui-user1:pairui-user1@cluster0.ae7mx.mongodb.net/pairui?retryWrites=true&w=majority&appName=Cluster0
+   JWT_SECRET=pairui-secret-key
    PORT=5001
    ```
 
